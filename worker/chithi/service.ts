@@ -42,7 +42,9 @@ export async function createChithi(db: ChithiDb, input: CreateChithiInput): Prom
   }
 
   const id = crypto.randomUUID();
-  const now = Date.now();
+  const existing = await db.select({ created_at: chithis.created_at }).from(chithis);
+  const lastCreatedAt = existing.reduce((max, row) => Math.max(max, row.created_at), 0);
+  const now = Math.max(Date.now(), lastCreatedAt + 1);
   await db.insert(chithis).values({
     id,
     content,
@@ -61,9 +63,10 @@ export async function updateChithi(
   patch: PatchChithiInput,
 ): Promise<ChithiRow | null> {
   const { content } = patchChithiSchema.parse({ content: patch.content });
-  if (!await getChithi(db, id)) return null;
+  const current = await getChithi(db, id);
+  if (!current) return null;
   await db.update(chithis)
-    .set({ content, updated_at: Date.now() })
+    .set({ content, updated_at: Math.max(Date.now(), current.updated_at + 1) })
     .where(eq(chithis.id, id));
   return getChithi(db, id);
 }

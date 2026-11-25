@@ -54,3 +54,28 @@ test("duplicate hour-aligned generatedFor throws SlotTakenError", async () => {
   await createChithi(d, { content: "prv", source: "ai", generatedFor: hour });
   await assert.rejects(() => createChithi(d, { content: "next", source: "ai", generatedFor: hour }), SlotTakenError);
 });
+
+test("created_at is strictly increasing so newest-first ordering is deterministic", async () => {
+  const d = db();
+  const rows = [];
+  for (let i = 0; i < 3; i += 1) rows.push(await createChithi(d, { content: `letter ${i}` }));
+  for (let i = 1; i < rows.length; i += 1) {
+    assert.ok(
+      rows[i].created_at > rows[i - 1].created_at,
+      `row ${i} must have a later created_at than row ${i - 1}`,
+    );
+  }
+  assert.deepEqual(
+    (await listChithis(d, 10)).map((r) => r.id),
+    [rows[2].id, rows[1].id, rows[0].id],
+  );
+});
+
+test("update never moves updated_at backwards after same-millisecond creates", async () => {
+  const d = db();
+  const rows = [];
+  for (let i = 0; i < 3; i += 1) rows.push(await createChithi(d, { content: `letter ${i}` }));
+  const newest = rows[2];
+  const updated = await updateChithi(d, newest.id, { content: "edited" });
+  assert.ok(updated!.updated_at > newest.updated_at);
+});
