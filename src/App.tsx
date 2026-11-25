@@ -27,12 +27,18 @@ function writeThreadToUrl(id: string | null, replace: boolean): void {
 
 function App() {
   const [threads, setThreads] = React.useState<ThreadSummary[]>([]);
-  const [activeThreadId, setActiveThreadId] = React.useState<string | null>(threadIdFromUrl);
-  const [chatKey, setChatKey] = React.useState(() => threadIdFromUrl() ?? "draft");
+  const [activeThreadId, setActiveThreadId] = React.useState<string | null>(
+    threadIdFromUrl,
+  );
+  const [chatKey, setChatKey] = React.useState(
+    () => threadIdFromUrl() ?? "draft",
+  );
   const [sessionNonce, setSessionNonce] = React.useState(0);
   const [title, setTitle] = React.useState("New chat");
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
-  const [loading, setLoading] = React.useState(() => threadIdFromUrl() !== null);
+  const [loading, setLoading] = React.useState(
+    () => threadIdFromUrl() !== null,
+  );
 
   const activeThreadIdRef = React.useRef<string | null>(activeThreadId);
   const loadToken = React.useMemo(() => createLoadToken(), []);
@@ -73,19 +79,24 @@ function App() {
 
   const newChat = React.useCallback(() => clearToDraft(false), [clearToDraft]);
 
-  const selectThread = React.useCallback((id: string) => {
-    const token = loadToken.next();
-    writeThreadToUrl(id, false);
-    setActiveThreadId(id);
-    setChatKey(id);
-    setLoading(true);
-    void loadThread(id).then((found) => {
-      if (!loadToken.isCurrent(token)) return;
-      if (!found) clearToDraft(true);
-    }).finally(() => {
-      if (loadToken.isCurrent(token)) setLoading(false);
-    });
-  }, [clearToDraft, loadThread, loadToken]);
+  const selectThread = React.useCallback(
+    (id: string) => {
+      const token = loadToken.next();
+      writeThreadToUrl(id, false);
+      setActiveThreadId(id);
+      setChatKey(id);
+      setLoading(true);
+      void loadThread(id)
+        .then((found) => {
+          if (!loadToken.isCurrent(token)) return;
+          if (!found) clearToDraft(true);
+        })
+        .finally(() => {
+          if (loadToken.isCurrent(token)) setLoading(false);
+        });
+    },
+    [clearToDraft, loadThread, loadToken],
+  );
 
   const ensureThread = React.useCallback(async (): Promise<string> => {
     if (activeThreadId) return activeThreadId;
@@ -98,11 +109,14 @@ function App() {
     return created.id;
   }, [activeThreadId]);
 
-  const removeThread = React.useCallback(async (id: string) => {
-    await deleteThread(id).catch(() => undefined);
-    setThreads((current) => current.filter((thread) => thread.id !== id));
-    if (activeThreadId === id) clearToDraft(false);
-  }, [activeThreadId, clearToDraft]);
+  const removeThread = React.useCallback(
+    async (id: string) => {
+      await deleteThread(id).catch(() => undefined);
+      setThreads((current) => current.filter((thread) => thread.id !== id));
+      if (activeThreadId === id) clearToDraft(false);
+    },
+    [activeThreadId, clearToDraft],
+  );
 
   React.useEffect(() => {
     const token = loadToken.next();
@@ -133,12 +147,14 @@ function App() {
       setChatKey(id ?? "draft");
       setLoading(true);
       if (id) {
-        void loadThread(id).then((found) => {
-          if (!loadToken.isCurrent(token)) return;
-          if (!found) clearToDraft(true);
-        }).finally(() => {
-          if (loadToken.isCurrent(token)) setLoading(false);
-        });
+        void loadThread(id)
+          .then((found) => {
+            if (!loadToken.isCurrent(token)) return;
+            if (!found) clearToDraft(true);
+          })
+          .finally(() => {
+            if (loadToken.isCurrent(token)) setLoading(false);
+          });
       } else {
         setTitle("New chat");
         setMessages([]);
@@ -158,7 +174,7 @@ function App() {
         onNew={newChat}
         onDelete={(id) => void removeThread(id)}
       />
-      <main className="m-2 min-w-0 flex-1 overflow-hidden rounded-2xl border">
+      <main className="m-2 min-w-0 flex-1 overflow-hidden rounded-2xl border h-dvh">
         {loading ? (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             Loading conversation…

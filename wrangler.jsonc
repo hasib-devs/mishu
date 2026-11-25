@@ -15,8 +15,8 @@
 	},
 	"upload_source_maps": true,
 	"vars": {
-		"VITE_NVIDIA_API_KEY": "",
-		"NVIDIA_API_KEY": ""
+		"VITE_NVIDIA_API_KEY": "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",
+		"NVIDIA_API_KEY": "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"
 	},
 	"d1_databases": [
 		{
@@ -31,5 +31,5 @@
 	 */
 	"placement": {
 		"mode": "smart"
-	}
+	},
 }
