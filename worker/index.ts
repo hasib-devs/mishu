@@ -18,7 +18,6 @@ import { chithiApp } from "./chithi/routes.ts";
 import { free4talkApp } from "./free4talk/routes.ts";
 import { generateHourlyChithi } from "./chithi/generate.ts";
 import { dbFor } from "./chithi/db.ts";
-import { scrapeFree4Talk } from "./free4talk/scrape.ts";
 import { rollupAndPrune } from "./free4talk/db.ts";
 
 const NVIDIA_BASE = "https://integrate.api.nvidia.com/v1";
@@ -119,7 +118,10 @@ export default {
           }),
       );
       ctx.waitUntil(
-        scrapeFree4Talk(env)
+        (async () => {
+          const { scrapeFree4Talk } = await import("./free4talk/scrape.ts");
+          return scrapeFree4Talk(env);
+        })()
           .then((result) => {
             console.log("free4talk: scraped", result);
           })
