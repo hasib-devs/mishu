@@ -11,7 +11,7 @@
 		"not_found_handling": "single-page-application"
 	},
 	"observability": {
-		"enabled": true
+		"enabled": false
 	},
 	"upload_source_maps": true,
 	"vars": {
@@ -20,11 +20,6 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "mishu-threads",
-			"database_id": "00000000-0000-0000-0000-000000000000"
-		},
-		{
-			"binding": "mishu_threads",
 			"database_name": "mishu-threads",
 			"database_id": "bba24c0c-7bb6-4aee-8ff4-6347404db7e6"
 		}

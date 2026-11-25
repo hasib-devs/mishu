@@ -181,8 +181,8 @@ async function handleAddMessage(threadId: string, request: Request, env: Env): P
 }
 
 async function handleChatCompletions(request: Request, env: Env): Promise<Response> {
-  if (!env.NVIDIA_API_KEY) {
-    return new Response("NVIDIA_API_KEY is not configured", { status: 500 });
+  if (!env.VITE_NVIDIA_API_KEY) {
+    return new Response("VITE_NVIDIA_API_KEY is not configured", { status: 500 });
   }
 
   let record: Record<string, unknown>;
@@ -201,7 +201,7 @@ async function handleChatCompletions(request: Request, env: Env): Promise<Respon
   const model = createOpenAICompatible({
     name: "nvidia",
     baseURL: NVIDIA_BASE,
-    apiKey: env.NVIDIA_API_KEY,
+    apiKey: env.VITE_NVIDIA_API_KEY,
   }).languageModel(modelName);
 
   const uiMessages = (record.messages ?? []) as Array<Omit<UIMessage, "id">>;
