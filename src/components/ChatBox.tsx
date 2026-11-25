@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useChat } from "@ai-sdk/react";
-import type { UIDataTypes, UIMessage } from "ai";
+import type { UIDataTypes, UIMessage, UIMessageChunk } from "ai";
 import {
   ArrowUpIcon,
   CircleCheckIcon,
@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
-import { createChat, getMessageText } from "@/lib/ai";
 import { MESSAGE_ANIMATIONS } from "@/lib/message-animations";
 import { Markdown } from "@/components/markdown";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
@@ -82,95 +81,169 @@ type ChatPart = ChatMessage["parts"][number];
 
 type ToolPart = Extract<ChatPart, { type: "tool-runCommand" }>;
 
-const chat = createChat<ChatMessage>()
-  .user("Add a dark mode toggle to the settings page.")
-  .sleep(600)
-  .assistant(({ writer }) => {
-    writer.reasoning(
-      "I need to know how themes are set up before I add a toggle. If next-themes is already in the layout, the toggle only has to call setTheme.",
-    );
-    writer.sleep(400);
-    writer
-      .tool("runCommand", { input: { command: "rg -l ThemeProvider app" } })
-      .sleep(800)
-      .output({ stdout: "app/layout.tsx" });
-    writer.sleep(500);
-    writer.text(`next-themes is already set up in \`app/layout.tsx\`, so the toggle only has to call \`setTheme\`.
+const NVIDIA_API_KEY = import.meta.env.VITE_NVIDIA_API_KEY;
+const INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
+const MODEL = "nvidia/nemotron-3.5-bolt-e4b";
 
-**Changes**
+const initialMessages: ChatMessage[] = [];
 
-- Added \`components/mode-toggle.tsx\` with a Light and Dark option.
-- Put \`<ModeToggle />\` next to the Appearance heading in \`app/settings/page.tsx\`.
+function messageContent(message: UIMessage): string {
+  return message.parts
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("");
+}
 
-\`\`\`tsx
-const { setTheme } = useTheme()
-\`\`\`
-`);
-  })
-  .user("Make it follow the system setting by default.")
-  .sleep(600)
-  .assistant(({ writer }) => {
-    writer.reasoning(
-      "The default theme lives on the ThemeProvider. I should check what it is set to now.",
-    );
-    writer.sleep(400);
-    writer
-      .tool("runCommand", {
-        input: { command: "rg -n defaultTheme app/layout.tsx" },
-      })
-      .sleep(800)
-      .output({
-        stdout: '12:  <ThemeProvider attribute="class" defaultTheme="light">',
-      });
-    writer.sleep(500);
-    writer.text(`It was set to \`light\`. I updated the \`ThemeProvider\` in \`app/layout.tsx\`:
+function toApiMessages(messages: ChatMessage[]) {
+  return messages.map((message) => ({
+    role: message.role,
+    content: messageContent(message),
+  }));
+}
 
-\`\`\`tsx
-<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-\`\`\`
+function toUiMessageChunkStream(
+  body: ReadableStream<Uint8Array> | null,
+  id: string,
+): ReadableStream<UIMessageChunk> {
+  if (!body) {
+    return new ReadableStream<UIMessageChunk>({
+      start(controller) {
+        controller.enqueue({ type: "text-start", id });
+        controller.enqueue({ type: "text-end", id });
+        controller.close();
+      },
+    });
+  }
 
-New visitors now get the theme from their OS. The toggle also has a **System** option, so anyone who picked Light or Dark can switch back.
-`);
-  })
-  .user("Run the build before I ship it.")
-  .sleep(600)
-  .assistant(({ writer }) => {
-    writer
-      .tool("runCommand", { input: { command: "pnpm build" } })
-      .sleep(1600)
-      .output({
-        stdout:
-          "▲ Next.js 16.0.0\n\n✓ Compiled successfully in 4.2s\n✓ Linting and checking validity of types\n✓ Generating static pages (12/12)",
-      });
-    writer.sleep(500);
-    writer.text(`The build passes, so it is ready to ship.
+  const decoder = new TextDecoder();
+  let buffer = "";
 
-- Compiled in **4.2s**.
-- No lint or type errors.
-- Generated all **12** static pages.
-`);
+  return new ReadableStream<UIMessageChunk>({
+    async start(controller) {
+      controller.enqueue({ type: "text-start", id });
+      try {
+        const reader = body.getReader();
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            let blockEnd: number;
+            while ((blockEnd = buffer.indexOf("\n\n")) !== -1) {
+              const block = buffer.slice(0, blockEnd);
+              buffer = buffer.slice(blockEnd + 2);
+              emitBlock(controller, block, id);
+            }
+          }
+          // flush any remaining decoder bytes + trailing buffer
+          buffer += decoder.decode();
+          if (buffer.trim()) {
+            emitBlock(controller, buffer, id);
+            buffer = "";
+          }
+        } finally {
+          reader.releaseLock();
+        }
+      } finally {
+        controller.enqueue({ type: "text-end", id });
+        controller.close();
+      }
+    },
   });
+}
 
-const initialMessages = chat.get(0);
-const transport = chat.transport({
-  delayMs: 16,
-  fallback:
-    "This demo only knows the scripted turns. Press reset to start over.",
-});
+function emitBlock(
+  controller: ReadableStreamDefaultController<UIMessageChunk>,
+  block: string,
+  id: string,
+) {
+  let dataLine = "";
+  for (const line of block.split("\n")) {
+    if (line.startsWith("data: ")) {
+      dataLine = line.slice(6);
+    }
+  }
+  if (!dataLine || dataLine === "[DONE]") return;
+  try {
+    const parsed = JSON.parse(dataLine);
+    const delta =
+      parsed.choices?.[0]?.delta?.content ??
+      parsed.choices?.[0]?.message?.content;
+    if (typeof delta === "string" && delta.length > 0) {
+      controller.enqueue({ type: "text-delta", delta, id });
+    }
+  } catch {
+    // ignore malformed SSE data lines
+  }
+}
+
+const transport = {
+  async sendMessages({
+    messages,
+    abortSignal,
+  }: {
+    messages: ChatMessage[];
+    abortSignal: AbortSignal | undefined;
+  }): Promise<ReadableStream<UIMessageChunk>> {
+    if (!NVIDIA_API_KEY) {
+      throw new Error("VITE_NVIDIA_API_KEY is not set");
+    }
+
+    const id = crypto.randomUUID();
+
+    const response = await fetch(INVOKE_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${NVIDIA_API_KEY}`,
+        Accept: "text/event-stream",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: toApiMessages(messages),
+        stream: true,
+        temperature: 0.7,
+        top_p: 0.9,
+        frequency_penalty: 0,
+        presence_penalty: 0,
+        reasoning_effort: "low",
+      }),
+      signal: abortSignal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      return new ReadableStream<UIMessageChunk>({
+        start(controller) {
+          controller.enqueue({
+            type: "error",
+            errorText: `HTTP ${response.status}: ${errorText}`,
+          });
+          controller.close();
+        },
+      });
+    }
+
+    return toUiMessageChunkStream(response.body as ReadableStream<Uint8Array>, id);
+  },
+
+  async reconnectToStream(): Promise<ReadableStream<UIMessageChunk> | null> {
+    return null;
+  },
+} satisfies { sendMessages: unknown; reconnectToStream: unknown };
 
 const MotionMessageScrollerItem = motion.create(MessageScrollerItem);
 
 export function ChatBox() {
-  const { messages, sendMessage, setMessages, status } = useChat({
+  const { messages, sendMessage, setMessages, status } = useChat<ChatMessage>({
     messages: initialMessages,
-    transport,
+    transport: transport as never,
   });
   const [draft, setDraft] = React.useState<string | null>(null);
   const formRef = React.useRef<HTMLFormElement>(null);
   const shouldReduceMotion = useReducedMotion();
-  const nextMessage = chat.next(messages);
   const busy = status === "submitted" || status === "streaming";
-  const text = draft ?? (nextMessage ? getMessageText(nextMessage) : "");
+  const text = draft ?? "";
   const canSend = text.trim().length > 0 && !busy;
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -179,11 +252,7 @@ export function ChatBox() {
       return;
     }
 
-    if (draft === null && nextMessage) {
-      void sendMessage(nextMessage);
-    } else {
-      void sendMessage({ text: text.trim() });
-    }
+    void sendMessage({ text: text.trim() });
     setDraft(null);
   }
 
@@ -256,7 +325,7 @@ export function ChatBox() {
                               <MessageContent>
                                 <Bubble align="end" variant="muted">
                                   <BubbleContent>
-                                    {getMessageText(message)}
+                                    {messageContent(message)}
                                   </BubbleContent>
                                 </Bubble>
                               </MessageContent>
@@ -271,7 +340,7 @@ export function ChatBox() {
                           part.type === "reasoning" ||
                           part.type === "tool-runCommand",
                       );
-                      const reply = getMessageText(message);
+                      const reply = messageContent(message);
 
                       return (
                         <MessageScrollerItem
@@ -372,6 +441,8 @@ export function ChatBox() {
     </MessageScrollerProvider>
   );
 }
+
+export default ChatBox;
 
 function StepRow({ part, streaming }: { part: ChatPart; streaming: boolean }) {
   if (part.type === "reasoning") {
