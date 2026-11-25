@@ -206,7 +206,7 @@ export function ChatBox({
                   >
                     {busy && messages.at(-1)?.role === "user" && (
                       <MessageScrollerItem key="thinking" scrollAnchor>
-                        <Message>
+                        <Message className="max-w-[90%] md:max-w-[80%]">
                           <MessageContent>
                             <ThinkingDots />
                           </MessageContent>
@@ -253,7 +253,7 @@ export function ChatBox({
                           initial={shouldReduceMotion ? false : "initial"}
                           animate="animate"
                         >
-                          <Message>
+                          <Message className="max-w-[90%] md:max-w-[80%]">
                             <MessageContent className="gap-3">
                               {steps.length > 0 && (
                                 <Trace>
