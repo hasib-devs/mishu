@@ -139,13 +139,13 @@ export function ChatBox({
 
   return (
     <MessageScrollerProvider autoScroll>
-      <div className="relative flex w-full flex-col gap-4 [[data-slot=preview]:has(&)]:bg-background [[data-slot=preview]:has(&)>div]:p-0!">
-        <div className="flex h-full w-full flex-col gap-4">
+      <div className="max-h-dvh relative flex w-full flex-col gap-4 [[data-slot=preview]:has(&)]:bg-background [[data-slot=preview]:has(&)>div]:p-0!">
+        <div className="flex max-h-dvh h-full w-full flex-col gap-4">
           <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-2 md:px-8">
             <div className="flex min-w-0 flex-col gap-1">
               <div className="truncate font-medium">{title}</div>
               <div className="text-sm text-muted-foreground">
-                Ask the agent to change your code.
+                Ask me anything
               </div>
             </div>
             <Tooltip>
