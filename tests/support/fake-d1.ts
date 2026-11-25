@@ -14,17 +14,17 @@ export function createFakeD1(
   const chithis: Row[] = (seed.chithis ?? []).map((row) => ({ ...row }));
 
   function selectChithis(sql: string, args: unknown[]): Row[] {
-    let rows: Array<Row & { __index: number }> = chithis.map((row, index) => ({ ...row, __index: index }));
+    let rows = chithis.map((row, index) => ({ row, index }));
 
     const id = /where\s+.*?"id"\s*=\s*\?/i.test(sql) ? args[0] : undefined;
-    if (id !== undefined) rows = rows.filter((row) => row.id === id);
+    if (id !== undefined) rows = rows.filter(({ row }) => row.id === id);
 
     const slot = /where\s+.*?"generated_for"\s*=\s*\?/i.test(sql) ? args[0] : undefined;
-    if (slot !== undefined) rows = rows.filter((row) => row.generated_for === slot);
+    if (slot !== undefined) rows = rows.filter(({ row }) => row.generated_for === slot);
 
     if (/order\s+by\s+.*?"created_at"\s+desc/i.test(sql)) {
       rows.sort((a, b) =>
-        Number(b.created_at) - Number(a.created_at) || Number(b.__index) - Number(a.__index)
+        Number(b.row.created_at) - Number(a.row.created_at) || b.index - a.index
       );
     }
 
@@ -32,7 +32,7 @@ export function createFakeD1(
       rows = rows.slice(0, Number(args[args.length - 1]));
     }
 
-    return rows.map(({ __index: _ignored, ...row }) => row);
+    return rows.map(({ row }) => ({ ...row }));
   }
 
   function select(sql: string, args: unknown[]): Row[] {
