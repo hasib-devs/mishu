@@ -14,6 +14,7 @@ import {
   isSupportedModel,
   type ReasoningEffort,
 } from "../src/lib/model-options.ts";
+import { chithiApp } from "./chithi/routes.ts";
 
 const NVIDIA_BASE = "https://integrate.api.nvidia.com/v1";
 const CORS_HEADERS = {
@@ -27,12 +28,19 @@ const CORS_HEADERS = {
 const CHAT_COMPLETIONS_PATH = "/api/chat/completions";
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const url = new URL(request.url);
+
     if (request.method === "OPTIONS") {
+      if (url.pathname === "/api/chithis" || url.pathname.startsWith("/api/chithis/")) {
+        return chithiApp.fetch(request, env, ctx);
+      }
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
 
-    const url = new URL(request.url);
+    if (url.pathname === "/api/chithis" || url.pathname.startsWith("/api/chithis/")) {
+      return chithiApp.fetch(request, env, ctx);
+    }
 
     // Thread management API
     if (url.pathname === "/api/threads" && request.method === "GET") {
