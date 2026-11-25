@@ -2,6 +2,7 @@ import "./App.css";
 import * as React from "react";
 
 import ChatBox from "./components/ChatBox";
+import { ChithiDashboard } from "./components/chithi/chithi-dashboard.tsx";
 import { ConfirmDialog } from "./components/confirm-dialog";
 import { ThreadSidebar } from "./components/thread-sidebar";
 import type { ChatMessage } from "@/lib/chat-transport";
@@ -12,6 +13,7 @@ import {
   listThreads,
   type ThreadSummary,
 } from "@/lib/thread-api";
+import { isChithiPath } from "@/lib/app-route.ts";
 import { createLoadToken } from "@/lib/thread-load-token";
 import { toChatMessages } from "@/lib/thread-messages";
 
@@ -28,6 +30,9 @@ function writeThreadToUrl(id: string | null, replace: boolean): void {
 
 function App() {
   const [threads, setThreads] = React.useState<ThreadSummary[]>([]);
+  const [chithiView, setChithiView] = React.useState(() =>
+    isChithiPath(window.location.pathname),
+  );
   const [activeThreadId, setActiveThreadId] = React.useState<string | null>(
     threadIdFromUrl,
   );
@@ -161,6 +166,7 @@ function App() {
 
   React.useEffect(() => {
     const onPopState = () => {
+      setChithiView(isChithiPath(window.location.pathname));
       const token = loadToken.next();
       const id = threadIdFromUrl();
       setActiveThreadId(id);
@@ -184,6 +190,8 @@ function App() {
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, [clearToDraft, loadThread, loadToken]);
+
+  if (chithiView) return <ChithiDashboard />;
 
   return (
     <div className="flex h-dvh w-full bg-background">
