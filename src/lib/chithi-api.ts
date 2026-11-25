@@ -15,7 +15,7 @@ export type CreateChithiOptions = {
   generatedFor?: number | null;
 };
 
-export type ChithiPatch = string | { content?: string; paperStyle?: PaperStyle };
+export type ChithiPatch = string | { content?: string; paperStyle?: PaperStyle; generatedFor?: number | null };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -60,6 +60,7 @@ export function updateChithi(id: string, patch: ChithiPatch): Promise<Chithi> {
     : {
         ...(patch.content !== undefined ? { content: patch.content } : {}),
         ...(patch.paperStyle !== undefined ? { paper_style: patch.paperStyle } : {}),
+        ...("generatedFor" in patch ? { generated_for: patch.generatedFor ?? null } : {}),
       };
   return request<Chithi>(`/api/chithis/${encodeURIComponent(id)}`, {
     method: "PATCH",

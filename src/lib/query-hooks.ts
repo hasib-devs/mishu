@@ -27,6 +27,7 @@ export type UpdateChithiArgs = {
   id: string;
   content: string;
   paperStyle?: PaperStyle;
+  generatedFor?: number | null;
 };
 
 export function useThreads() {
@@ -100,7 +101,8 @@ export function useCreateChithiMutation() {
 export function useUpdateChithiMutation() {
   const queryClient = useQueryClient();
   return useMutation<Chithi, Error, UpdateChithiArgs>({
-    mutationFn: ({ id, content, paperStyle }) => updateChithi(id, { content, paperStyle }),
+    mutationFn: ({ id, content, paperStyle, generatedFor }) =>
+      updateChithi(id, { content, paperStyle, generatedFor }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["chithis"] });
     },

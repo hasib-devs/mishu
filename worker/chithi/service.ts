@@ -18,7 +18,11 @@ export type CreateChithiInput = {
   paperStyle?: string;
 };
 
-export type PatchChithiInput = { content?: string; paperStyle?: string };
+export type PatchChithiInput = {
+  content?: string;
+  paperStyle?: string;
+  generatedFor?: number | null;
+};
 
 export function listChithis(db: ChithiDb, limit: number): Promise<ChithiRow[]> {
   return db.select().from(chithis).orderBy(desc(chithis.created_at)).limit(limit);
@@ -62,17 +66,30 @@ export async function updateChithi(
   id: string,
   patch: PatchChithiInput,
 ): Promise<ChithiRow | null> {
-  const { content, paper_style } = patchChithiSchema.parse({
+  const { content, paper_style, generated_for } = patchChithiSchema.parse({
     content: patch.content,
     paper_style: patch.paperStyle,
+    generated_for: patch.generatedFor,
   });
   const current = await getChithi(db, id);
   if (!current) return null;
-  const values: { content?: string; paper_style?: string; updated_at: number } = {
+  if (generated_for !== undefined) {
+    const next = generated_for ?? null;
+    if (next !== null && (!Number.isInteger(next) || next % 3_600_000 !== 0)) {
+      throw new Error("generatedFor must be an hour-aligned epoch in milliseconds");
+    }
+    if (next !== null) {
+      const taken = await db.select().from(chithis)
+        .where(eq(chithis.generated_for, next)).limit(1);
+      if (taken.length > 0 && taken[0].id !== id) throw new SlotTakenError();
+    }
+  }
+  const values: { content?: string; paper_style?: string; generated_for?: number | null; updated_at: number } = {
     updated_at: Math.max(Date.now(), current.updated_at + 1),
   };
   if (content !== undefined) values.content = content;
   if (paper_style !== undefined) values.paper_style = paper_style;
+  if (generated_for !== undefined) values.generated_for = generated_for;
   await db.update(chithis).set(values).where(eq(chithis.id, id));
   return getChithi(db, id);
 }

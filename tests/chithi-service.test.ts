@@ -106,3 +106,16 @@ test("schemas accept known styles/aligned slots and reject unknown style/misalig
   assert.equal(patchChithiSchema.safeParse({ paper_style: "modern" }).success, true);
   assert.equal(patchChithiSchema.safeParse({}).success, false);
 });
+
+test("PATCH can reschedule a slot and rejects a slot owned by another letter", async () => {
+  const d = db();
+  const first = await createChithi(d, { content: "first" });
+  const second = await createChithi(d, { content: "second", generatedFor: hour });
+  const moved = await updateChithi(d, first.id, { generatedFor: hour + 3_600_000 });
+  assert.equal(moved?.generated_for, hour + 3_600_000);
+  await assert.rejects(
+    () => updateChithi(d, first.id, { generatedFor: hour }),
+    SlotTakenError,
+  );
+  assert.equal((await getChithi(d, second.id))?.generated_for, hour);
+});

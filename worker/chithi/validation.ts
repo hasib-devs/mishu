@@ -19,10 +19,14 @@ export const patchChithiSchema = z
   .object({
     content: content.optional(),
     paper_style: paperStyleSchema.optional(),
+    generated_for: generatedFor.nullable().optional(),
   })
   .refine(
-    (value) => value.content !== undefined || value.paper_style !== undefined,
-    "Provide content or paper_style",
+    (value) =>
+      value.content !== undefined ||
+      value.paper_style !== undefined ||
+      value.generated_for !== undefined,
+    "Provide content, paper_style or generated_for",
   );
 
 export const listQuerySchema = z.object({

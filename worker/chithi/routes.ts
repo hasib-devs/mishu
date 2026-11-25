@@ -89,13 +89,19 @@ chithiApp.patch(
     }
   }),
   async (c) => {
-    const { content, paper_style } = c.req.valid("json");
-    const row = await updateChithi(dbFor(c.env.DB), c.req.param("id"), {
-      content,
-      paperStyle: paper_style,
-    });
-    if (!row) return c.json({ error: "Chithi not found" }, 404);
-    return c.json(row);
+    const { content, paper_style, generated_for } = c.req.valid("json");
+    try {
+      const row = await updateChithi(dbFor(c.env.DB), c.req.param("id"), {
+        content,
+        paperStyle: paper_style,
+        generatedFor: generated_for,
+      });
+      if (!row) return c.json({ error: "Chithi not found" }, 404);
+      return c.json(row);
+    } catch (err) {
+      if (err instanceof SlotTakenError) return c.json({ error: err.message }, 409);
+      throw err;
+    }
   },
 );
 
