@@ -55,7 +55,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  initialMessages,
   messageContent,
   transport,
   type ChatMessage,
@@ -63,7 +62,13 @@ import {
 
 const MotionMessageScrollerItem = motion.create(MessageScrollerItem);
 
-export function ChatBox() {
+export function ChatBox({
+  title,
+  initialMessages,
+}: {
+  title: string;
+  initialMessages: ChatMessage[];
+}) {
   const { messages, sendMessage, setMessages, status } = useChat<ChatMessage>({
     messages: initialMessages,
     transport: transport as never,
@@ -95,10 +100,10 @@ export function ChatBox() {
   return (
     <MessageScrollerProvider autoScroll>
       <div className="relative flex w-full flex-col gap-4 [[data-slot=preview]:has(&)]:bg-background [[data-slot=preview]:has(&)>div]:p-0!">
-        <div className="flex h-dvh w-full flex-col gap-4">
+        <div className="flex h-full w-full flex-col gap-4">
           <div className="flex items-start justify-between gap-4 p-8 pb-4">
             <div className="flex flex-col gap-1">
-              <div className="font-medium">New Thread</div>
+              <div className="font-medium">{title}</div>
               <div className="text-sm text-muted-foreground">
                 Ask the agent to change your code.
               </div>
