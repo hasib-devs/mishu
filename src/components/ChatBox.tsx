@@ -168,7 +168,7 @@ export function ChatBox({
             </Tooltip>
           </div>
 
-          <div className="min-h-0 flex-1">
+          <div className="grid min-h-0 flex-1">
             {messages.length === 0 ? (
               <Empty className="h-full px-6">
                 <EmptyHeader>

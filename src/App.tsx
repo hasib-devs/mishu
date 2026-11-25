@@ -2,6 +2,7 @@ import "./App.css";
 import * as React from "react";
 
 import ChatBox from "./components/ChatBox";
+import { ConfirmDialog } from "./components/confirm-dialog";
 import { ThreadSidebar } from "./components/thread-sidebar";
 import type { ChatMessage } from "@/lib/chat-transport";
 import {
@@ -39,6 +40,10 @@ function App() {
   const [loading, setLoading] = React.useState(
     () => threadIdFromUrl() !== null,
   );
+  const [pendingDelete, setPendingDelete] = React.useState<{
+    id: string | null;
+    title: string;
+  } | null>(null);
 
   const activeThreadIdRef = React.useRef<string | null>(activeThreadId);
   const loadToken = React.useMemo(() => createLoadToken(), []);
@@ -118,6 +123,21 @@ function App() {
     [activeThreadId, clearToDraft],
   );
 
+  const requestDelete = React.useCallback((id: string | null) => {
+    const thread = id ? threads.find((item) => item.id === id) : undefined;
+    setPendingDelete({
+      id,
+      title: thread?.title ?? (id ? "This conversation" : "New chat"),
+    });
+  }, [threads]);
+
+  const confirmDelete = React.useCallback(() => {
+    if (!pendingDelete) return;
+    if (pendingDelete.id) void removeThread(pendingDelete.id);
+    else newChat();
+    setPendingDelete(null);
+  }, [newChat, pendingDelete, removeThread]);
+
   React.useEffect(() => {
     const token = loadToken.next();
     let cancelled = false;
@@ -172,9 +192,9 @@ function App() {
         activeId={activeThreadId}
         onSelect={selectThread}
         onNew={newChat}
-        onDelete={(id) => void removeThread(id)}
+        onDelete={(id) => requestDelete(id)}
       />
-      <main className="m-2 min-w-0 flex-1 overflow-hidden rounded-2xl border h-dvh">
+      <main className="m-2 min-w-0 flex-1 overflow-hidden rounded-2xl border">
         {loading ? (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             Loading conversation…
@@ -187,13 +207,17 @@ function App() {
             initialMessages={messages}
             ensureThread={ensureThread}
             onSaved={() => void refreshTitles()}
-            onDeleted={() => {
-              if (activeThreadId) void removeThread(activeThreadId);
-              else newChat();
-            }}
+            onDeleted={() => requestDelete(activeThreadId)}
           />
         )}
       </main>
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete conversation?"
+        description={`“${pendingDelete?.title ?? "This conversation"}” and all its messages will be removed. This cannot be undone.`}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

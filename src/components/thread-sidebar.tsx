@@ -1,7 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { MenuIcon, MessageSquareTextIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
+import {
+  MenuIcon,
+  MessageSquareTextIcon,
+  PlusIcon,
+  Trash2Icon,
+  XIcon,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { groupThreads } from "@/lib/thread-groups";
@@ -15,22 +21,31 @@ type ThreadSidebarProps = {
   onDelete: (id: string) => void;
 };
 
-export function ThreadSidebar({ threads, activeId, onSelect, onNew, onDelete }: ThreadSidebarProps) {
+export function ThreadSidebar({
+  threads,
+  activeId,
+  onSelect,
+  onNew,
+  onDelete,
+}: ThreadSidebarProps) {
   const [open, setOpen] = React.useState(false);
 
   const panel = (
     <div className="flex h-full w-full flex-col gap-3 bg-muted/30 p-3">
-      <Button
-        variant="outline"
-        className="w-full justify-start gap-2"
-        onClick={() => {
-          onNew();
-          setOpen(false);
-        }}
-      >
-        <PlusIcon className="size-4" />
-        New chat
-      </Button>
+      <div className="mb-4">
+        <Button
+          variant="outline"
+          className="w-full justify-start gap-2"
+          size={"lg"}
+          onClick={() => {
+            onNew();
+            setOpen(false);
+          }}
+        >
+          <PlusIcon className="size-4" />
+          New chat
+        </Button>
+      </div>
 
       <div className="thread-list min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
         {threads.length === 0 ? (
@@ -93,11 +108,14 @@ export function ThreadSidebar({ threads, activeId, onSelect, onNew, onDelete }: 
         <MenuIcon />
       </Button>
 
-      <aside className="hidden w-[260px] shrink-0 border-r md:block">{panel}</aside>
+      <aside className="hidden w-75 shrink-0 border-r md:block">{panel}</aside>
 
       {open && (
         <div className="fixed inset-0 z-50 md:hidden">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setOpen(false)}
+          />
           <aside className="absolute inset-y-0 left-0 w-[min(20rem,85vw)] border-r bg-background">
             <Button
               variant="ghost"
