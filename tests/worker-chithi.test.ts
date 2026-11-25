@@ -81,3 +81,49 @@ test("client-supplied generatedFor and source are ignored; CORS headers are pres
   assert.equal(preflight.status, 204);
   assert.match(preflight.headers.get("Access-Control-Allow-Methods") ?? "", /PATCH/);
 });
+
+const hour = 1_760_000_000_000 - (1_760_000_000_000 % 3_600_000);
+
+test("POST persists paper_style and generated_for; a duplicate hour returns 409", async () => {
+  const fake = createFakeD1({ threads: [], messages: [], chithis: [] });
+  const created = await worker.fetch(json("/api/chithis", "POST", {
+    content: "styled letter", paper_style: "minimal", generated_for: hour,
+  }), envFor(fake));
+  assert.equal(created.status, 201);
+  const row = await created.json() as { paper_style: string; generated_for: number | null };
+  assert.equal(row.paper_style, "minimal");
+  assert.equal(row.generated_for, hour);
+
+  const duplicate = await worker.fetch(json("/api/chithis", "POST", {
+    content: "other letter", generated_for: hour,
+  }), envFor(fake));
+  assert.equal(duplicate.status, 409);
+  assert.equal(typeof (await duplicate.json() as { error: string }).error, "string");
+});
+
+test("invalid paper style and non-hour-aligned slot return 400", async () => {
+  const fake = createFakeD1({ threads: [], messages: [], chithis: [] });
+  const badStyle = await worker.fetch(json("/api/chithis", "POST", {
+    content: "hi", paper_style: "fancy",
+  }), envFor(fake));
+  assert.equal(badStyle.status, 400);
+  const badSlot = await worker.fetch(json("/api/chithis", "POST", {
+    content: "hi", generated_for: hour + 1,
+  }), envFor(fake));
+  assert.equal(badSlot.status, 400);
+  const list = await worker.fetch(new Request(`${base}/api/chithis`), envFor(fake));
+  assert.deepEqual(await list.json(), []);
+});
+
+test("PATCH with paper_style only updates the style and keeps the content", async () => {
+  const fake = createFakeD1({ threads: [], messages: [], chithis: [] });
+  const created = await worker.fetch(json("/api/chithis", "POST", { content: "keep me" }), envFor(fake));
+  const { id } = await created.json() as { id: string };
+  const patched = await worker.fetch(json(`/api/chithis/${id}`, "PATCH", {
+    paper_style: "modern",
+  }), envFor(fake));
+  assert.equal(patched.status, 200);
+  const row = await patched.json() as { content: string; paper_style: string };
+  assert.equal(row.content, "keep me");
+  assert.equal(row.paper_style, "modern");
+});

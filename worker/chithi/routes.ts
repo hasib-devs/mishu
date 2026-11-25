@@ -8,6 +8,7 @@ import {
   deleteChithi,
   getChithi,
   listChithis,
+  SlotTakenError,
   updateChithi,
 } from "./service.ts";
 import {
@@ -60,8 +61,17 @@ chithiApp.post(
     }
   }),
   async (c) => {
-    const { content } = c.req.valid("json");
-    return c.json(await createChithi(dbFor(c.env.DB), { content }), 201);
+    const { content, paper_style, generated_for } = c.req.valid("json");
+    try {
+      return c.json(await createChithi(dbFor(c.env.DB), {
+        content,
+        paperStyle: paper_style,
+        generatedFor: generated_for,
+      }), 201);
+    } catch (err) {
+      if (err instanceof SlotTakenError) return c.json({ error: err.message }, 409);
+      throw err;
+    }
   },
 );
 
@@ -79,8 +89,11 @@ chithiApp.patch(
     }
   }),
   async (c) => {
-    const { content } = c.req.valid("json");
-    const row = await updateChithi(dbFor(c.env.DB), c.req.param("id"), { content });
+    const { content, paper_style } = c.req.valid("json");
+    const row = await updateChithi(dbFor(c.env.DB), c.req.param("id"), {
+      content,
+      paperStyle: paper_style,
+    });
     if (!row) return c.json({ error: "Chithi not found" }, 404);
     return c.json(row);
   },
