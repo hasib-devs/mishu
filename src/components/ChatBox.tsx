@@ -17,8 +17,8 @@ import {
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
-// import { MESSAGE_ANIMATIONS } from "@/lib/message-animations";
-// import { Markdown } from "@/components/markdown";
+import { MESSAGE_ANIMATIONS } from "@/lib/message-animations";
+import { Markdown } from "@/components/markdown";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
 import { CodeBlock, CodeBlockContent } from "@/components/ui/code-block";
@@ -82,7 +82,7 @@ type ChatPart = ChatMessage["parts"][number];
 type ToolPart = Extract<ChatPart, { type: "tool-runCommand" }>;
 
 const NVIDIA_API_KEY = import.meta.env.VITE_NVIDIA_API_KEY;
-const INVOKE_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
+const INVOKE_URL = "/api/chat/completions";
 const MODEL = "nvidia/nemotron-3.5-bolt-e4b";
 
 const initialMessages: ChatMessage[] = [];
@@ -320,7 +320,7 @@ export function ChatBox() {
                             key={message.id}
                             messageId={message.id}
                             scrollAnchor
-                            // variants={MESSAGE_ANIMATIONS["slide-up"].variants}
+                            variants={MESSAGE_ANIMATIONS["slide-up"].variants}
                             initial={shouldReduceMotion ? false : "initial"}
                             animate="animate"
                           >
@@ -343,7 +343,7 @@ export function ChatBox() {
                           part.type === "reasoning" ||
                           part.type === "tool-runCommand",
                       );
-                      //   const reply = messageContent(message);
+                      const reply = messageContent(message);
 
                       return (
                         <MessageScrollerItem
@@ -363,7 +363,7 @@ export function ChatBox() {
                                   ))}
                                 </Trace>
                               )}
-                              {/* {reply && <Markdown>{reply}</Markdown>} */}
+                              {reply && <Markdown>{reply}</Markdown>}
                             </MessageContent>
                           </Message>
                         </MessageScrollerItem>
