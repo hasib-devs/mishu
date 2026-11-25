@@ -54,7 +54,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { initialMessages, messageContent, transport, type ChatMessage } from "@/lib/chat-transport";
+import {
+  initialMessages,
+  messageContent,
+  transport,
+  type ChatMessage,
+} from "@/lib/chat-transport";
 
 const MotionMessageScrollerItem = motion.create(MessageScrollerItem);
 
@@ -127,10 +132,12 @@ export function ChatBox() {
                   <EmptyMedia variant="icon">
                     <MessageCircleDashedIcon />
                   </EmptyMedia>
-                  <EmptyTitle>What should we build?</EmptyTitle>
-                  <EmptyDescription>
-                    The agent can read your code, run commands and make changes.
-                    Press send to start.
+                  <EmptyTitle className="text-lg">
+                    What should we build?
+                  </EmptyTitle>
+                  <EmptyDescription className="text-base">
+                    Ask me anything. I can read your code, run commands, and
+                    make changes for you.
                   </EmptyDescription>
                 </EmptyHeader>
               </Empty>
@@ -163,7 +170,7 @@ export function ChatBox() {
                             <Message align="end">
                               <MessageContent>
                                 <Bubble align="end" variant="muted">
-                                  <BubbleContent>
+                                  <BubbleContent className="text-lg">
                                     {messageContent(message)}
                                   </BubbleContent>
                                 </Bubble>
@@ -204,7 +211,10 @@ export function ChatBox() {
                                 </Trace>
                               )}
                               {reply ? (
-                                <Markdown caret={streaming ? caret : undefined}>
+                                <Markdown
+                                  caret={streaming ? caret : undefined}
+                                  className="text-lg"
+                                >
                                   {reply}
                                 </Markdown>
                               ) : streaming ? (
@@ -229,7 +239,7 @@ export function ChatBox() {
                   onChange={(event) => setDraft(event.target.value)}
                   placeholder="Ask the agent..."
                   aria-label="Message"
-                  className="min-h-14"
+                  className="min-h-14 text-base"
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
