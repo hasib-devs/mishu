@@ -38,6 +38,16 @@ test("update changes content and updated_at; delete removes the row", async () =
   assert.equal(await deleteChithi(d, row.id), false);
 });
 
+test("service rejects over-long and blank content before it reaches D1", async () => {
+  const d = db();
+  await assert.rejects(() => createChithi(d, { content: bengali(601) }));
+  await assert.rejects(() => createChithi(d, { content: "   " }));
+  const row = await createChithi(d, { content: "valid" });
+  await assert.rejects(() => updateChithi(d, row.id, { content: bengali(601) }));
+  assert.equal((await getChithi(d, row.id))?.content, "valid");
+  assert.equal((await listChithis(d, 10)).length, 1);
+});
+
 test("duplicate hour-aligned generatedFor throws SlotTakenError", async () => {
   const d = db();
   const hour = 1_760_000_000_000 - (1_760_000_000_000 % 3_600_000);

@@ -5,6 +5,7 @@ import { PenLineIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
+import { withSearch } from "@/lib/app-route.ts";
 import { deleteChithi, listChithis, type Chithi } from "@/lib/chithi-api";
 
 import { ChithiFormDialog } from "./chithi-form-dialog";
@@ -82,7 +83,7 @@ export function ChithiDashboard() {
             <Button
               variant="outline"
               nativeButton={false}
-              render={<a href="/">Back to chat</a>}
+              render={<a href={withSearch("/", window.location.search)}>Back to chat</a>}
             />
             <Button onClick={openCreate}>
               <PlusIcon className="size-4" />

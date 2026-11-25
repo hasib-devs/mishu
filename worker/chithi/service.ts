@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 
 import type { ChithiDb } from "./db.ts";
 import { chithis, type ChithiRow } from "./schema.ts";
+import { createChithiSchema, patchChithiSchema } from "./validation.ts";
 
 export class SlotTakenError extends Error {
   constructor() {
@@ -29,6 +30,7 @@ export async function getChithi(db: ChithiDb, id: string): Promise<ChithiRow | n
 }
 
 export async function createChithi(db: ChithiDb, input: CreateChithiInput): Promise<ChithiRow> {
+  const { content } = createChithiSchema.parse({ content: input.content });
   const generatedFor = input.generatedFor ?? null;
   if (generatedFor !== null && (!Number.isInteger(generatedFor) || generatedFor % 3_600_000 !== 0)) {
     throw new Error("generatedFor must be an hour-aligned epoch in milliseconds");
@@ -43,7 +45,7 @@ export async function createChithi(db: ChithiDb, input: CreateChithiInput): Prom
   const now = Date.now();
   await db.insert(chithis).values({
     id,
-    content: input.content,
+    content,
     source: input.source ?? "manual",
     generated_for: generatedFor,
     paper_style: input.paperStyle ?? "classic",
@@ -58,9 +60,10 @@ export async function updateChithi(
   id: string,
   patch: PatchChithiInput,
 ): Promise<ChithiRow | null> {
+  const { content } = patchChithiSchema.parse({ content: patch.content });
   if (!await getChithi(db, id)) return null;
   await db.update(chithis)
-    .set({ content: patch.content, updated_at: Date.now() })
+    .set({ content, updated_at: Date.now() })
     .where(eq(chithis.id, id));
   return getChithi(db, id);
 }

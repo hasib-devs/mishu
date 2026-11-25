@@ -52,6 +52,19 @@ test("validation and unknown paths return JSON errors without hitting the proxy"
   assert.equal(typeof (await unknown.json() as { error: string }).error, "string");
 });
 
+test("malformed JSON body returns 400 without leaking parser internals", async () => {
+  const fake = createFakeD1({ threads: [], messages: [], chithis: [] });
+  const response = await worker.fetch(new Request(`${base}/api/chithis`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{not json",
+    duplex: "half",
+  } as RequestInit), envFor(fake));
+  assert.equal(response.status, 400);
+  const body = await response.json() as { error: string };
+  assert.ok(!body.error.toLowerCase().includes("json"));
+});
+
 test("client-supplied generatedFor and source are ignored; CORS headers are present", async () => {
   const fake = createFakeD1({ threads: [], messages: [], chithis: [] });
   const hour = 1_760_000_000_000 - (1_760_000_000_000 % 3_600_000);

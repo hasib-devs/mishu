@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { withSearch } from "@/lib/app-route.ts";
 import { groupThreads } from "@/lib/thread-groups";
 import type { ThreadSummary } from "@/lib/thread-api";
 
@@ -49,7 +50,7 @@ export function ThreadSidebar({
       </div>
 
       <a
-        href="/chithi"
+        href={withSearch("/chithi", window.location.search)}
         onClick={() => setOpen(false)}
         className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
       >

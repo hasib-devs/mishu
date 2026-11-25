@@ -18,6 +18,18 @@ import {
 
 export const chithiApp = new Hono<{ Bindings: Env }>();
 
+chithiApp.use("*", async (c, next) => {
+  const method = c.req.method;
+  if ((method === "POST" || method === "PATCH") && c.req.path.startsWith("/api/chithis")) {
+    try {
+      await c.req.json();
+    } catch {
+      return c.json({ error: "Invalid request body" }, 400);
+    }
+  }
+  await next();
+});
+
 chithiApp.use(
   "*",
   cors({
@@ -82,4 +94,7 @@ chithiApp.delete("/api/chithis/:id", async (c) => {
 
 chithiApp.notFound((c) => c.json({ error: "Not found" }, 404));
 
-chithiApp.onError((err, c) => c.json({ error: String(err) }, 500));
+chithiApp.onError((err, c) => {
+  console.error(err);
+  return c.json({ error: "Internal server error" }, 500);
+});
