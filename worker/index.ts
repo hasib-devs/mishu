@@ -47,6 +47,11 @@ export default {
       return handleAddMessage(threadId, request, env);
     }
 
+    if (url.pathname.match(/^\/api\/threads\/[^/]+\/messages$/) && request.method === "PUT") {
+      const threadId = url.pathname.split("/")[3];
+      return handleSaveMessages(threadId, request, env);
+    }
+
     if (url.pathname === CHAT_COMPLETIONS_PATH && request.method === "POST") {
       return handleChatCompletions(request, env);
     }
@@ -126,11 +131,23 @@ async function handleGetThread(threadId: string, env: Env): Promise<Response> {
       });
     }
     const { results: messages } = await env.DB.prepare(
-      "SELECT id, role, content, created_at FROM messages WHERE thread_id = ? ORDER BY created_at ASC"
+      "SELECT id, role, content, parts, created_at FROM messages WHERE thread_id = ? ORDER BY created_at ASC"
     )
       .bind(threadId)
       .all();
-    return new Response(JSON.stringify({ ...thread, messages }), {
+    const decoded = messages.map((row) => {
+      let parts: unknown[] | null = null;
+      if (typeof row.parts === "string") {
+        try {
+          const parsed = JSON.parse(row.parts) as unknown;
+          if (Array.isArray(parsed)) parts = parsed;
+        } catch {
+          parts = null;
+        }
+      }
+      return { ...row, parts };
+    });
+    return new Response(JSON.stringify({ ...thread, messages: decoded }), {
       headers: { "Content-Type": "application/json", ...CORS_HEADERS },
     });
   } catch (err) {
@@ -177,6 +194,78 @@ async function handleAddMessage(threadId: string, request: Request, env: Env): P
       headers: { "Content-Type": "application/json", ...CORS_HEADERS },
     });
   }
+}
+
+async function handleSaveMessages(threadId: string, request: Request, env: Env): Promise<Response> {
+  let body: { messages?: unknown };
+  try {
+    body = (await request.json()) as { messages?: unknown };
+  } catch {
+    return jsonError("Invalid JSON body", 400);
+  }
+
+  const allowedRoles = new Set(["user", "assistant", "system", "tool"]);
+  const rawMessages = body.messages;
+  if (!Array.isArray(rawMessages)) {
+    return jsonError("messages must be an array", 400);
+  }
+  const messages: Array<{ id: string; role: string; content: string; parts: unknown[] }> = [];
+  for (const item of rawMessages) {
+    const message = item as Record<string, unknown>;
+    if (
+      typeof message?.id !== "string" ||
+      typeof message.role !== "string" ||
+      !allowedRoles.has(message.role) ||
+      typeof message.content !== "string" ||
+      !Array.isArray(message.parts)
+    ) {
+      return jsonError("Invalid message", 400);
+    }
+    messages.push({
+      id: message.id,
+      role: message.role,
+      content: message.content,
+      parts: message.parts,
+    });
+  }
+
+  try {
+    const thread = await env.DB.prepare("SELECT id FROM threads WHERE id = ?")
+      .bind(threadId)
+      .first();
+    if (!thread) {
+      return jsonError("Thread not found", 404);
+    }
+
+    const now = Date.now();
+    const title = messages.find((message) => message.role === "user")?.content.trim().slice(0, 120) ?? "";
+    const statements = [
+      env.DB.prepare("DELETE FROM messages WHERE thread_id = ?").bind(threadId),
+      ...messages.map((message, index) =>
+        env.DB.prepare(
+          "INSERT INTO messages (id, thread_id, role, content, parts, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+        ).bind(message.id, threadId, message.role, message.content, JSON.stringify(message.parts), now + index),
+      ),
+      env.DB.prepare("UPDATE threads SET updated_at = ? WHERE id = ?").bind(now, threadId),
+      env.DB.prepare(
+        "UPDATE threads SET title = CASE WHEN title = 'New Thread' AND ? != '' THEN ? ELSE title END WHERE id = ?"
+      ).bind(title, title, threadId),
+    ];
+    await env.DB.batch(statements);
+
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+    });
+  } catch (err) {
+    return jsonError(String(err), 500);
+  }
+}
+
+function jsonError(message: string, status: number): Response {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+  });
 }
 
 async function handleChatCompletions(request: Request, env: Env): Promise<Response> {
