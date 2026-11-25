@@ -1,14 +1,42 @@
 type Row = Record<string, unknown>;
 
 /**
- * Minimal in-memory D1 stand-in for the SQL used by worker/index.ts.
- * Statements are bound through `prepare(sql).bind(...args)`; batch runs them in order.
+ * Minimal in-memory D1 stand-in for the SQL used by worker/index.ts and the
+ * Drizzle chithi queries. Statements are bound through `prepare(sql).bind(...args)`;
+ * batch runs them in order.
  */
-export function createFakeD1(seed: { threads: Row[]; messages: Row[] }, now = 1000) {
+export function createFakeD1(
+  seed: { threads: Row[]; messages: Row[]; chithis?: Row[] },
+  now = 1000,
+) {
   const threads: Row[] = seed.threads.map((row) => ({ ...row }));
   const messages: Row[] = seed.messages.map((row) => ({ ...row }));
+  const chithis: Row[] = (seed.chithis ?? []).map((row) => ({ ...row }));
+
+  function selectChithis(sql: string, args: unknown[]): Row[] {
+    let rows: Array<Row & { __index: number }> = chithis.map((row, index) => ({ ...row, __index: index }));
+
+    const id = /where\s+"?id"?\s*=\s*\?/i.test(sql) ? args[0] : undefined;
+    if (id !== undefined) rows = rows.filter((row) => row.id === id);
+
+    const slot = /where\s+"?generated_for"?\s*=\s*\?/i.test(sql) ? args[0] : undefined;
+    if (slot !== undefined) rows = rows.filter((row) => row.generated_for === slot);
+
+    if (/order\s+by\s+"?created_at"?\s+desc/i.test(sql)) {
+      rows.sort((a, b) =>
+        Number(b.created_at) - Number(a.created_at) || Number(b.__index) - Number(a.__index)
+      );
+    }
+
+    if (/limit\s+\?/i.test(sql)) {
+      rows = rows.slice(0, Number(args[args.length - 1]));
+    }
+
+    return rows.map(({ __index: _ignored, ...row }) => row);
+  }
 
   function select(sql: string, args: unknown[]): Row[] {
+    if (/from\s+"?chithis"?/i.test(sql)) return selectChithis(sql, args);
     if (sql.includes("FROM threads")) {
       const id = args[0];
       return threads.filter((row) => id === undefined || row.id === id).map((row) => ({ ...row }));
@@ -24,9 +52,40 @@ export function createFakeD1(seed: { threads: Row[]; messages: Row[] }, now = 10
   }
 
   function apply(sql: string, args: unknown[]): void {
+    if (/^insert\s+into\s+"?chithis"?/i.test(sql)) {
+      const columns =
+        sql.match(/insert\s+into\s+"?chithis"?\s*\(([^)]+)\)/i)?.[1]
+          .split(",")
+          .map((column) => column.trim().replace(/"/g, "")) ?? [];
+      const row: Row = {};
+      columns.forEach((column, index) => {
+        row[column] = args[index];
+      });
+      chithis.push(row);
+      return;
+    }
+    if (/^update\s+"?chithis"?/i.test(sql)) {
+      const assignments =
+        sql.match(/set\s+(.+?)\s+where\s+"?id"?\s*=\s*\?/i)?.[1]
+          .split(",")
+          .map((part) => part.trim().match(/^"?(\w+)"?\s*=\s*\?$/)?.[1]) ?? [];
+      const id = args[args.length - 1];
+      const row = chithis.find((item) => item.id === id);
+      if (row) {
+        assignments.forEach((column, index) => {
+          if (column) row[column] = args[index];
+        });
+      }
+      return;
+    }
+    if (/^delete\s+from\s+"?chithis"?/i.test(sql)) {
+      const index = chithis.findIndex((row) => row.id === args[0]);
+      if (index !== -1) chithis.splice(index, 1);
+      return;
+    }
     if (sql.startsWith("DELETE FROM messages")) {
       const threadId = args[0];
-      for (let i = messages.length - 1; i >= 0; i--) {
+      for (let i = messages.length - 1; i >= 0; i -= 1) {
         if (messages[i].thread_id === threadId) messages.splice(i, 1);
       }
       return;
@@ -83,6 +142,15 @@ export function createFakeD1(seed: { threads: Row[]; messages: Row[] }, now = 10
       async first() {
         return select(sql, args)[0] ?? null;
       },
+      async raw() {
+        const rows = select(sql, args);
+        const columns =
+          sql.match(/select\s+(.+?)\s+from\s+"?chithis"?/i)?.[1]
+            .split(",")
+            .map((column) => column.trim().replace(/"/g, "")) ??
+          (rows[0] ? Object.keys(rows[0]) : []);
+        return rows.map((row) => columns.map((column) => row[column]));
+      },
     };
   }
 
@@ -100,6 +168,6 @@ export function createFakeD1(seed: { threads: Row[]; messages: Row[] }, now = 10
         return [];
       },
     },
-    state: { threads, messages, now },
+    state: { threads, messages, chithis, now },
   };
 }
