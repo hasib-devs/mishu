@@ -1,5 +1,11 @@
 import type { UIMessage, UIMessageChunk } from "ai";
 import type { UIDataTypes } from "ai";
+import {
+  DEFAULT_EFFORT,
+  DEFAULT_MODEL_ID,
+  isSupportedEffort,
+  isSupportedModel,
+} from "./model-options.ts";
 
 export type ChatMessage = UIMessage<
   unknown,
@@ -13,7 +19,6 @@ export type ChatMessage = UIMessage<
 >;
 
 const INVOKE_URL = "/api/chat/completions";
-const MODEL = "nvidia/nemotron-3.5-bolt-e4b";
 
 export const initialMessages: ChatMessage[] = [];
 
@@ -150,11 +155,23 @@ export const transport = {
   async sendMessages({
     messages,
     abortSignal,
+    body,
   }: {
     messages: ChatMessage[];
     abortSignal: AbortSignal | undefined;
+    body?: object;
   }): Promise<ReadableStream<UIMessageChunk>> {
     const id = crypto.randomUUID();
+    const options = (body ?? {}) as Record<string, unknown>;
+    const requestedModel = options.modelId;
+    const requestedEffort = options.reasoningEffort;
+    const modelId =
+      typeof requestedModel === "string" && isSupportedModel(requestedModel)
+        ? requestedModel
+        : DEFAULT_MODEL_ID;
+    const reasoningEffort = isSupportedEffort(requestedEffort)
+      ? requestedEffort
+      : DEFAULT_EFFORT;
 
     const response = await fetch(INVOKE_URL, {
       method: "POST",
@@ -163,15 +180,14 @@ export const transport = {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: MODEL,
+        model: modelId,
         messages: toApiMessages(messages),
         stream: true,
         temperature: 0.7,
         top_p: 0.9,
         frequency_penalty: 0,
         presence_penalty: 0,
-        reasoning_effort: "medium",
-        // max_tokens: 1024 * 2,
+        reasoningEffort,
       }),
       signal: abortSignal,
     });
