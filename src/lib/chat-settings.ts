@@ -3,6 +3,7 @@ import {
   DEFAULT_MODEL_ID,
   isSupportedEffort,
   isSupportedModel,
+  MODEL_OPTIONS,
   type ReasoningEffort,
 } from "./model-options.ts";
 
@@ -29,7 +30,11 @@ function readEntries(): Record<string, unknown> {
 
 function writeEntries(entries: Record<string, unknown>): void {
   if (typeof localStorage === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  } catch {
+    // storage is a best-effort cache; it must never block a request
+  }
 }
 
 function keyFor(threadId: string | null): string {
@@ -58,6 +63,17 @@ export function saveSettings(threadId: string | null, settings: ChatSettings): v
     effort: settings.effort,
   };
   writeEntries(entries);
+}
+
+export function toRequestBody(settings: ChatSettings): {
+  modelId: string;
+  reasoningEffort?: ReasoningEffort;
+} {
+  const option = MODEL_OPTIONS.find((entry) => entry.id === settings.modelId);
+  if (!option || option.effortMode === "none") {
+    return { modelId: settings.modelId };
+  }
+  return { modelId: settings.modelId, reasoningEffort: settings.effort };
 }
 
 export function moveDraftSettings(threadId: string): void {

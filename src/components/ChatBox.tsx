@@ -69,6 +69,7 @@ import {
   loadSettings,
   moveDraftSettings,
   saveSettings,
+  toRequestBody,
   type ChatSettings,
 } from "@/lib/chat-settings";
 
@@ -150,15 +151,7 @@ export function ChatBox({
         moveDraftSettings(threadIdRef.current);
       }
       setDraft(null);
-      await sendMessage(
-        { text: trimmed },
-        {
-          body: {
-            modelId: settings.modelId,
-            reasoningEffort: settings.effort,
-          },
-        },
-      );
+      await sendMessage({ text: trimmed }, { body: toRequestBody(settings) });
     } finally {
       setCreating(false);
     }

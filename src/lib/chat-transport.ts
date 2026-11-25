@@ -1,7 +1,6 @@
 import type { UIMessage, UIMessageChunk } from "ai";
 import type { UIDataTypes } from "ai";
 import {
-  DEFAULT_EFFORT,
   DEFAULT_MODEL_ID,
   isSupportedEffort,
   isSupportedModel,
@@ -171,7 +170,7 @@ export const transport = {
         : DEFAULT_MODEL_ID;
     const reasoningEffort = isSupportedEffort(requestedEffort)
       ? requestedEffort
-      : DEFAULT_EFFORT;
+      : undefined;
 
     const response = await fetch(INVOKE_URL, {
       method: "POST",
@@ -187,7 +186,7 @@ export const transport = {
         top_p: 0.9,
         frequency_penalty: 0,
         presence_penalty: 0,
-        reasoningEffort,
+        ...(reasoningEffort ? { reasoningEffort } : {}),
       }),
       signal: abortSignal,
     });

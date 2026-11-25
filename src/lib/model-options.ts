@@ -36,10 +36,10 @@ export const MODEL_OPTIONS: readonly ModelOption[] = [
     effortMode: "effort",
   },
   {
-    id: "google/gemma-3-12b-it",
-    label: "Gemma 3 12B",
-    description: "Fast instruction model without reasoning.",
-    effortMode: "none",
+    id: "mistralai/mistral-large-4-1t-a52b",
+    label: "Mistral Large 4",
+    description: "Large model with native effort control.",
+    effortMode: "effort",
   },
 ];
 

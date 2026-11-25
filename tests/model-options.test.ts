@@ -35,5 +35,5 @@ test("effort maps to the raw field each model family actually accepts", () => {
     effortToRequestOptions("nvidia/nemotron-3.5-super-vl-120b-a12b", "high"),
     { reasoning_effort: "high" },
   );
-  assert.deepEqual(effortToRequestOptions("google/gemma-3-12b-it", "high"), {});
+  assert.deepEqual(effortToRequestOptions("unknown/model", "high"), {});
 });

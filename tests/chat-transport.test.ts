@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { DEFAULT_MODEL_ID, DEFAULT_EFFORT } from "../src/lib/model-options.ts";
+import { DEFAULT_MODEL_ID } from "../src/lib/model-options.ts";
 import { transport } from "../src/lib/chat-transport.ts";
 
 const originalFetch = globalThis.fetch;
@@ -38,7 +38,25 @@ test("an invalid body value falls back to defaults", async () => {
       body: { modelId: "bogus/model", reasoningEffort: "extreme" },
     });
     assert.equal(sent.model, DEFAULT_MODEL_ID);
-    assert.equal(sent.reasoningEffort, DEFAULT_EFFORT);
+    assert.equal(sent.reasoningEffort, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("sendMessages omits the effort field when none was supplied", async () => {
+  let sent: Record<string, unknown> = {};
+  globalThis.fetch = (async (_url: unknown, init: RequestInit) => {
+    sent = JSON.parse(String(init.body)) as Record<string, unknown>;
+    return new Response(new ReadableStream(), { status: 200 });
+  }) as typeof fetch;
+  try {
+    await transport.sendMessages({
+      messages: [],
+      abortSignal: undefined,
+      body: { modelId: "mistralai/mistral-large-4-1t-a52b" },
+    });
+    assert.equal("reasoningEffort" in sent, false);
   } finally {
     globalThis.fetch = originalFetch;
   }
