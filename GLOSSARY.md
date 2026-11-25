@@ -29,3 +29,9 @@
 **StoredMessage** — A persisted message row: `{ id, role, content, parts, created_at }`, where `parts` is JSON-encoded `ChatMessage["parts"]` (`src/lib/thread-messages.ts`).
 
 **snapshot save** — A single `PUT /api/threads/:id/messages` that replaces all messages for a thread with the final state of the conversation, fired from `useChat`'s `onFinish`.
+
+**model option** — A curated NVIDIA chat model exposed in the composer selector (`src/lib/model-options.ts`), with a label, description, and effort mode.
+
+**reasoning effort** — The user's low/medium/high choice for a thread, stored per thread id and sent with every request (`src/lib/chat-settings.ts`, `src/lib/chat-transport.ts`).
+
+**effort mode** — The raw request field a model family accepts for effort: `thinking`, `budget`, `effort`, or `none` (`src/lib/model-options.ts`); the worker maps the effort choice through it.
