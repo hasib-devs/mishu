@@ -15,6 +15,8 @@ import {
   type ReasoningEffort,
 } from "../src/lib/model-options.ts";
 import { chithiApp } from "./chithi/routes.ts";
+import { generateHourlyChithi } from "./chithi/generate.ts";
+import { dbFor } from "./chithi/db.ts";
 
 const NVIDIA_BASE = "https://integrate.api.nvidia.com/v1";
 const CORS_HEADERS = {
@@ -89,6 +91,18 @@ export default {
     }
 
     return new Response(null, { status: 404 });
+  },
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    const db = dbFor(env.DB);
+    ctx.waitUntil(
+      generateHourlyChithi(db, env as unknown as Record<string, unknown>)
+        .then((row) => {
+          console.log("chithi: generated", row?.id ?? "slot taken");
+        })
+        .catch((err) => {
+          console.error("chithi: generation failed", err);
+        }),
+    );
   },
 } satisfies ExportedHandler<Env>;
 
