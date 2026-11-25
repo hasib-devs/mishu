@@ -1,17 +1,9 @@
-"use client";
-
 import * as React from "react";
-import {
-  FeatherIcon,
-  MenuIcon,
-  MessageSquareTextIcon,
-  PlusIcon,
-  Trash2Icon,
-  XIcon,
-} from "lucide-react";
+import { Link, useLocation } from "react-router";
+
+import { FeatherIcon, MenuIcon, MessageSquareTextIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { withSearch } from "@/lib/app-route.ts";
 import { groupThreads } from "@/lib/thread-groups";
 import type { ThreadSummary } from "@/lib/thread-api";
 
@@ -31,6 +23,7 @@ export function ThreadSidebar({
   onDelete,
 }: ThreadSidebarProps) {
   const [open, setOpen] = React.useState(false);
+  const location = useLocation();
 
   const panel = (
     <div className="flex h-full w-full flex-col gap-3 bg-muted/30 p-3">
@@ -49,14 +42,14 @@ export function ThreadSidebar({
         </Button>
       </div>
 
-      <a
-        href={withSearch("/chithi", window.location.search)}
+      <Link
+        to={{ pathname: "/chithi", search: location.search }}
         onClick={() => setOpen(false)}
         className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
       >
         <FeatherIcon className="size-4" />
         Chithi
-      </a>
+      </Link>
 
       <div className="thread-list min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
         {threads.length === 0 ? (

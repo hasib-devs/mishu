@@ -1,53 +1,34 @@
 "use client";
 
 import * as React from "react";
+import { Link, useLocation } from "react-router";
+
 import { PenLineIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Button } from "@/components/ui/button";
-import { withSearch } from "@/lib/app-route.ts";
-import { deleteChithi, listChithis, type Chithi } from "@/lib/chithi-api";
+import { useChithis, useDeleteChithiMutation } from "@/lib/query-hooks";
+import { type Chithi } from "@/lib/chithi-api";
 
 import { ChithiFormDialog } from "./chithi-form-dialog";
 
 export function ChithiDashboard() {
-  const [items, setItems] = React.useState<Chithi[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  const location = useLocation();
+  const chithisQuery = useChithis();
+  const deleteMutation = useDeleteChithiMutation();
+
+  const items = chithisQuery.data ?? [];
+  const loading = chithisQuery.isLoading;
+  const queryError = chithisQuery.isError
+    ? chithisQuery.error instanceof Error
+      ? chithisQuery.error.message
+      : "Could not load letters"
+    : null;
+
   const [formOpen, setFormOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Chithi | null>(null);
   const [pendingDelete, setPendingDelete] = React.useState<Chithi | null>(null);
-
-  const load = React.useCallback(async () => {
-    try {
-      const rows = await listChithis();
-      setItems(rows);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load letters");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    listChithis()
-      .then((rows) => {
-        if (cancelled) return;
-        setItems(rows);
-        setError(null);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Could not load letters");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const [deleteError, setDeleteError] = React.useState<string | null>(null);
 
   function openCreate() {
     setEditing(null);
@@ -63,13 +44,15 @@ export function ChithiDashboard() {
     if (!pendingDelete) return;
     const target = pendingDelete;
     setPendingDelete(null);
+    setDeleteError(null);
     try {
-      await deleteChithi(target.id);
-      setItems((current) => current.filter((item) => item.id !== target.id));
+      await deleteMutation.mutateAsync(target.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete the letter");
+      setDeleteError(err instanceof Error ? err.message : "Could not delete the letter");
     }
   }
+
+  const displayError = queryError ?? deleteError;
 
   return (
     <div className="h-dvh w-full overflow-y-auto bg-background">
@@ -83,7 +66,11 @@ export function ChithiDashboard() {
             <Button
               variant="outline"
               nativeButton={false}
-              render={<a href={withSearch("/", window.location.search)}>Back to chat</a>}
+              render={
+                <Link to={{ pathname: "/", search: location.search }}>
+                  Back to chat
+                </Link>
+              }
             />
             <Button onClick={openCreate}>
               <PlusIcon className="size-4" />
@@ -92,9 +79,9 @@ export function ChithiDashboard() {
           </div>
         </header>
 
-        {error && (
+        {displayError && (
           <p role="alert" className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive">
-            {error}
+            {displayError}
           </p>
         )}
 
@@ -161,7 +148,7 @@ export function ChithiDashboard() {
           open={formOpen}
           initial={editing}
           onClose={() => setFormOpen(false)}
-          onSaved={() => void load()}
+          onSaved={() => void chithisQuery.refetch()}
         />
       )}
 

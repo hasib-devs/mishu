@@ -12,7 +12,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { createChithi, updateChithi, type Chithi } from "@/lib/chithi-api";
+import { useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useCreateChithiMutation, useUpdateChithiMutation } from "@/lib/query-hooks";
+import { chithiSchema, type ChithiFormValues } from "@/lib/chithi-schema";
+import type { Chithi } from "@/lib/chithi-api";
 
 type ChithiFormDialogProps = {
   open: boolean;
@@ -27,34 +31,44 @@ export function ChithiFormDialog({
   onClose,
   onSaved,
 }: ChithiFormDialogProps) {
-  const key = initial ? `${initial.id}:${initial.updated_at}` : "new";
-  const [draft, setDraft] = React.useState({ key, content: initial?.content ?? "" });
-  const [saving, setSaving] = React.useState(false);
-  const [errorState, setErrorState] = React.useState<{
-    key: string;
-    message: string | null;
-  }>({ key, message: null });
-  const content = draft.key === key ? draft.content : (initial?.content ?? "");
-  const error = errorState.key === key ? errorState.message : null;
+  const createMutation = useCreateChithiMutation();
+  const updateMutation = useUpdateChithiMutation();
 
+  const {
+    register,
+    handleSubmit,
+    reset,
+    control,
+    formState: { errors, isSubmitting },
+  } = useForm<ChithiFormValues>({
+    resolver: zodResolver(chithiSchema),
+    defaultValues: { content: initial?.content ?? "" },
+  });
+
+  React.useEffect(() => {
+    reset({ content: initial?.content ?? "" });
+  }, [initial, reset]);
+
+  const content = useWatch({ control, name: "content" }) ?? "";
   const length = content.trim().length;
   const invalid = length === 0 || length > 600;
 
-  async function submit() {
-    setSaving(true);
-    setErrorState({ key, message: null });
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
+
+  async function submit(values: ChithiFormValues) {
+    setSubmitError(null);
     try {
-      if (initial) await updateChithi(initial.id, content);
-      else await createChithi(content);
+      if (initial) {
+        await updateMutation.mutateAsync({ id: initial.id, content: values.content });
+      } else {
+        await createMutation.mutateAsync(values.content);
+      }
       onSaved();
       onClose();
     } catch (err) {
-      setErrorState({
-        key,
-        message: err instanceof Error ? err.message : "Could not save the letter",
-      });
-    } finally {
-      setSaving(false);
+      setSubmitError(
+        err instanceof Error ? err.message : "Could not save the letter. Please try again.",
+      );
     }
   }
 
@@ -73,14 +87,13 @@ export function ChithiFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-2">
+        <form onSubmit={handleSubmit(submit)} className="space-y-2">
           <Textarea
             aria-label="Chithi message"
             autoFocus
             rows={8}
-            value={content}
-            onChange={(event) => setDraft({ key, content: event.target.value })}
             placeholder="আপনার চিঠি লিখুন…"
+            {...register("content")}
           />
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Write a short letter…</span>
@@ -88,17 +101,24 @@ export function ChithiFormDialog({
               {length}/600
             </span>
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-        </div>
+          {errors.content && (
+            <p className="text-sm text-destructive">{errors.content.message}</p>
+          )}
+          {submitError && (
+            <p role="alert" className="text-sm text-destructive">
+              {submitError}
+            </p>
+          )}
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button disabled={invalid || saving} onClick={() => void submit()}>
-            {saving ? "Saving…" : "Save letter"}
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={invalid || isSubmitting}>
+              {isSubmitting ? "Saving…" : "Save letter"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
