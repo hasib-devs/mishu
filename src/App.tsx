@@ -3,7 +3,7 @@ import ChatBox from "./components/ChatBox";
 
 function App() {
   return (
-    <div className="w-full md:max-w-3xl mx-auto border mt-3 rounded-2xl">
+    <div className="w-full md:max-w-3xl mx-auto border mt-3 rounded-2xl h-dvh">
       <ChatBox />
     </div>
   );
