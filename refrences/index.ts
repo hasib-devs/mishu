@@ -15,7 +15,7 @@ const rl = createInterface({ input: stdin, output: stdout });
 
 const messages = [{ role: "system", content: "You are a helpful assistant." }];
 
-async function showLoading(message: string, promise: Promise<any>) {
+async function showLoading(message: string, promise: Promise<unknown>) {
   const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
   let i = 0;
   const interval = setInterval(() => {
