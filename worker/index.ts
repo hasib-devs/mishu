@@ -18,6 +18,8 @@ import { chithiApp } from "./chithi/routes.ts";
 import { free4talkApp } from "./free4talk/routes.ts";
 import { generateHourlyChithi } from "./chithi/generate.ts";
 import { dbFor } from "./chithi/db.ts";
+import { scrapeFree4Talk } from "./free4talk/scrape.ts";
+import { rollupAndPrune } from "./free4talk/db.ts";
 
 const NVIDIA_BASE = "https://integrate.api.nvidia.com/v1";
 const CORS_HEADERS = {
@@ -105,17 +107,38 @@ export default {
 
     return new Response(null, { status: 404 });
   },
-  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    const db = dbFor(env.DB);
-    ctx.waitUntil(
-      generateHourlyChithi(db, env as unknown as Record<string, unknown>)
-        .then((row) => {
-          console.log("chithi: generated", row?.id ?? "slot taken");
-        })
-        .catch((err) => {
-          console.error("chithi: generation failed", err);
+  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    if (controller.cron === "0 * * * *") {
+      ctx.waitUntil(
+        generateHourlyChithi(dbFor(env.DB), env as unknown as Record<string, unknown>)
+          .then((row) => {
+            console.log("chithi: generated", row?.id ?? "slot taken");
+          })
+          .catch((err) => {
+            console.error("chithi: generation failed", err);
+          }),
+      );
+      ctx.waitUntil(
+        scrapeFree4Talk(env)
+          .then((result) => {
+            console.log("free4talk: scraped", result);
+          })
+          .catch((err) => {
+            console.error("free4talk: scrape failed", err);
+          }),
+      );
+      return;
+    }
+    if (controller.cron === "10 0 * * *") {
+      const yesterdayUtcDate = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+      ctx.waitUntil(
+        rollupAndPrune(env.DB, yesterdayUtcDate).catch((err) => {
+          console.error("free4talk: rollup failed", err);
         }),
-    );
+      );
+      return;
+    }
+    console.warn("scheduled: unhandled cron", controller.cron);
   },
 } satisfies ExportedHandler<Env>;
 
