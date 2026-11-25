@@ -11,6 +11,7 @@ import {
   listThreads,
   type ThreadSummary,
 } from "@/lib/thread-api";
+import { createLoadToken } from "@/lib/thread-load-token";
 import { toChatMessages } from "@/lib/thread-messages";
 
 function threadIdFromUrl(): string | null {
@@ -28,9 +29,17 @@ function App() {
   const [threads, setThreads] = React.useState<ThreadSummary[]>([]);
   const [activeThreadId, setActiveThreadId] = React.useState<string | null>(threadIdFromUrl);
   const [chatKey, setChatKey] = React.useState(() => threadIdFromUrl() ?? "draft");
+  const [sessionNonce, setSessionNonce] = React.useState(0);
   const [title, setTitle] = React.useState("New chat");
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
   const [loading, setLoading] = React.useState(() => threadIdFromUrl() !== null);
+
+  const activeThreadIdRef = React.useRef<string | null>(activeThreadId);
+  const loadToken = React.useMemo(() => createLoadToken(), []);
+
+  React.useEffect(() => {
+    activeThreadIdRef.current = activeThreadId;
+  }, [activeThreadId]);
 
   const loadThread = React.useCallback(async (id: string): Promise<boolean> => {
     try {
@@ -43,35 +52,47 @@ function App() {
     }
   }, []);
 
-  const newChat = React.useCallback(() => {
-    writeThreadToUrl(null, false);
+  const refreshTitles = React.useCallback(async () => {
+    const list = await listThreads().catch(() => [] as ThreadSummary[]);
+    setThreads(list);
+    const id = activeThreadIdRef.current;
+    if (id) {
+      const current = list.find((thread) => thread.id === id);
+      if (current) setTitle(current.title);
+    }
+  }, []);
+
+  const clearToDraft = React.useCallback((replaceUrl: boolean) => {
+    writeThreadToUrl(null, replaceUrl);
     setActiveThreadId(null);
     setChatKey("draft");
+    setSessionNonce((current) => current + 1);
     setTitle("New chat");
     setMessages([]);
   }, []);
 
+  const newChat = React.useCallback(() => clearToDraft(false), [clearToDraft]);
+
   const selectThread = React.useCallback((id: string) => {
+    const token = loadToken.next();
     writeThreadToUrl(id, false);
     setActiveThreadId(id);
     setChatKey(id);
     setLoading(true);
     void loadThread(id).then((found) => {
-      if (!found) {
-        writeThreadToUrl(null, true);
-        setActiveThreadId(null);
-        setChatKey("draft");
-        setTitle("New chat");
-        setMessages([]);
-      }
-    }).finally(() => setLoading(false));
-  }, [loadThread]);
+      if (!loadToken.isCurrent(token)) return;
+      if (!found) clearToDraft(true);
+    }).finally(() => {
+      if (loadToken.isCurrent(token)) setLoading(false);
+    });
+  }, [clearToDraft, loadThread, loadToken]);
 
   const ensureThread = React.useCallback(async (): Promise<string> => {
     if (activeThreadId) return activeThreadId;
     const created = await createThread();
     setThreads((current) => [created, ...current]);
     writeThreadToUrl(created.id, false);
+    activeThreadIdRef.current = created.id;
     setActiveThreadId(created.id);
     setTitle(created.title);
     return created.id;
@@ -80,41 +101,44 @@ function App() {
   const removeThread = React.useCallback(async (id: string) => {
     await deleteThread(id).catch(() => undefined);
     setThreads((current) => current.filter((thread) => thread.id !== id));
-    if (activeThreadId === id) newChat();
-  }, [activeThreadId, newChat]);
+    if (activeThreadId === id) clearToDraft(false);
+  }, [activeThreadId, clearToDraft]);
 
   React.useEffect(() => {
+    const token = loadToken.next();
     let cancelled = false;
     void (async () => {
       const list = await listThreads().catch(() => [] as ThreadSummary[]);
-      if (cancelled) return;
+      if (cancelled || !loadToken.isCurrent(token)) return;
       setThreads(list);
 
       const id = threadIdFromUrl();
       if (id) {
         const found = await loadThread(id);
-        if (cancelled) return;
-        if (!found) {
-          writeThreadToUrl(null, true);
-          setActiveThreadId(null);
-          setChatKey("draft");
-        }
+        if (cancelled || !loadToken.isCurrent(token)) return;
+        if (!found) clearToDraft(true);
       }
-      setLoading(false);
+      if (loadToken.isCurrent(token)) setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [loadThread]);
+  }, [clearToDraft, loadThread, loadToken]);
 
   React.useEffect(() => {
     const onPopState = () => {
+      const token = loadToken.next();
       const id = threadIdFromUrl();
       setActiveThreadId(id);
       setChatKey(id ?? "draft");
       setLoading(true);
       if (id) {
-        void loadThread(id).finally(() => setLoading(false));
+        void loadThread(id).then((found) => {
+          if (!loadToken.isCurrent(token)) return;
+          if (!found) clearToDraft(true);
+        }).finally(() => {
+          if (loadToken.isCurrent(token)) setLoading(false);
+        });
       } else {
         setTitle("New chat");
         setMessages([]);
@@ -123,7 +147,7 @@ function App() {
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [loadThread]);
+  }, [clearToDraft, loadThread, loadToken]);
 
   return (
     <div className="flex h-dvh w-full bg-background">
@@ -141,10 +165,12 @@ function App() {
           </div>
         ) : (
           <ChatBox
-            key={chatKey}
+            key={`${chatKey}-${sessionNonce}`}
             title={title}
+            threadId={activeThreadId}
             initialMessages={messages}
             ensureThread={ensureThread}
+            onSaved={() => void refreshTitles()}
             onDeleted={() => {
               if (activeThreadId) void removeThread(activeThreadId);
               else newChat();

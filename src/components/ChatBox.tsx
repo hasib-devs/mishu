@@ -72,18 +72,22 @@ const STARTER_PROMPTS = [
 
 type ChatBoxProps = {
   title: string;
+  threadId: string | null;
   initialMessages: ChatMessage[];
   ensureThread: () => Promise<string>;
+  onSaved: () => void;
   onDeleted: () => void;
 };
 
 export function ChatBox({
   title,
+  threadId,
   initialMessages,
   ensureThread,
+  onSaved,
   onDeleted,
 }: ChatBoxProps) {
-  const threadIdRef = React.useRef<string | null>(null);
+  const threadIdRef = React.useRef<string | null>(threadId);
   const { messages, sendMessage, status } = useChat<ChatMessage>({
     messages: initialMessages,
     transport: transport as never,
@@ -92,7 +96,9 @@ export function ChatBox({
       if (!threadId) return;
       const snapshot = messagesToSave(finalMessages, isAbort || isError);
       if (snapshot.length === 0) return;
-      void saveMessages(threadId, toStoredMessages(snapshot)).catch(() => undefined);
+      void saveMessages(threadId, toStoredMessages(snapshot))
+        .then(onSaved)
+        .catch(() => undefined);
     },
   });
 
