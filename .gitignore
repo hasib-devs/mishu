@@ -23,6 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 
+# local git worktrees
+.worktrees/
+
 # wrangler files
 .wrangler
 .dev.vars*
