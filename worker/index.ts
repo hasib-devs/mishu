@@ -6,6 +6,14 @@ import {
   JsonToSseTransformStream,
   UI_MESSAGE_STREAM_HEADERS,
 } from "ai";
+import {
+  DEFAULT_EFFORT,
+  DEFAULT_MODEL_ID,
+  effortToRequestOptions,
+  isSupportedEffort,
+  isSupportedModel,
+  type ReasoningEffort,
+} from "../src/lib/model-options.ts";
 
 const NVIDIA_BASE = "https://integrate.api.nvidia.com/v1";
 const CORS_HEADERS = {
@@ -17,7 +25,6 @@ const CORS_HEADERS = {
 // The chat completion endpoint is generated server-side with the AI SDK so that
 // the `runCommand` tool executes on the server instead of being a no-op.
 const CHAT_COMPLETIONS_PATH = "/api/chat/completions";
-const DEFAULT_MODEL = "nvidia/nemotron-3.5-bolt-e4b";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -280,10 +287,38 @@ async function handleChatCompletions(request: Request, env: Env): Promise<Respon
     return new Response("Invalid JSON body", { status: 400 });
   }
 
-  const modelName =
-    typeof record.model === "string" && record.model.length > 0
-      ? record.model
-      : DEFAULT_MODEL;
+  if (
+    typeof record.modelId === "string" &&
+    !isSupportedModel(record.modelId)
+  ) {
+    return jsonError("Unsupported model", 400);
+  }
+  if (
+    typeof record.model === "string" &&
+    !isSupportedModel(record.model)
+  ) {
+    return jsonError("Unsupported model", 400);
+  }
+  if (
+    record.reasoningEffort !== undefined &&
+    !isSupportedEffort(record.reasoningEffort)
+  ) {
+    return jsonError("Unsupported reasoning effort", 400);
+  }
+
+  const requestedModel =
+    typeof record.modelId === "string" && record.modelId.length > 0
+      ? record.modelId
+      : typeof record.model === "string" && record.model.length > 0
+        ? record.model
+        : DEFAULT_MODEL_ID;
+  const modelName = isSupportedModel(requestedModel)
+    ? requestedModel
+    : DEFAULT_MODEL_ID;
+  const effort: ReasoningEffort = isSupportedEffort(record.reasoningEffort)
+    ? record.reasoningEffort
+    : DEFAULT_EFFORT;
+  const requestOptions = effortToRequestOptions(modelName, effort);
 
   // createOpenAICompatible returns a provider; use .languageModel() to get the model
   const model = createOpenAICompatible({
@@ -304,7 +339,8 @@ async function handleChatCompletions(request: Request, env: Env): Promise<Respon
     model,
     messages: modelMessages,
     system: "You are a helpful assistant. Keep responses small and concise. Do not explain more than necessary.",
-    maxOutputTokens: 256,
+    providerOptions: { nvidia: requestOptions },
+    maxOutputTokens: 2048,
   });
 
   const uiStream = result.toUIMessageStream();

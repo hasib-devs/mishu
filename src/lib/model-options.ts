@@ -1,5 +1,10 @@
 export type EffortMode = "none" | "thinking" | "budget" | "effort";
 export type ReasoningEffort = "low" | "medium" | "high";
+export type ProviderRequestOptions = {
+  chat_template_kwargs?: { enable_thinking: boolean };
+  reasoning_budget?: number;
+  reasoning_effort?: string;
+};
 export type ModelOption = {
   id: string;
   label: string;
@@ -55,7 +60,7 @@ export function isSupportedEffort(value: unknown): value is ReasoningEffort {
 export function effortToRequestOptions(
   id: string,
   effort: ReasoningEffort,
-): Record<string, unknown> {
+): ProviderRequestOptions {
   const option = MODEL_OPTIONS.find((entry) => entry.id === id);
   if (!option) return {};
 
