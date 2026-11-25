@@ -24,6 +24,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -61,6 +64,13 @@ import {
 } from "@/lib/chat-transport";
 import { saveMessages } from "@/lib/thread-api";
 import { messagesToSave, toStoredMessages } from "@/lib/thread-messages";
+import { EFFORTS, MODEL_OPTIONS, type ReasoningEffort } from "@/lib/model-options";
+import {
+  loadSettings,
+  moveDraftSettings,
+  saveSettings,
+  type ChatSettings,
+} from "@/lib/chat-settings";
 
 const MotionMessageScrollerItem = motion.create(MessageScrollerItem);
 
@@ -104,11 +114,24 @@ export function ChatBox({
 
   const [draft, setDraft] = React.useState<string | null>(null);
   const [creating, setCreating] = React.useState(false);
+  const [settings, setSettings] = React.useState<ChatSettings>(() =>
+    loadSettings(threadId),
+  );
   const formRef = React.useRef<HTMLFormElement>(null);
   const shouldReduceMotion = useReducedMotion();
   const busy = status === "submitted" || status === "streaming";
   const text = draft ?? "";
   const canSend = text.trim().length > 0 && !busy && !creating;
+  const selectedModel =
+    MODEL_OPTIONS.find((option) => option.id === settings.modelId) ??
+    MODEL_OPTIONS[0];
+
+  function updateSettings(patch: Partial<ChatSettings>) {
+    const next = { ...settings, ...patch };
+    setSettings(next);
+    saveSettings(threadIdRef.current, next);
+  }
+
   const caret = (
     <span
       aria-hidden
@@ -124,9 +147,18 @@ export function ChatBox({
     try {
       if (!threadIdRef.current) {
         threadIdRef.current = await ensureThread();
+        moveDraftSettings(threadIdRef.current);
       }
       setDraft(null);
-      await sendMessage({ text: trimmed });
+      await sendMessage(
+        { text: trimmed },
+        {
+          body: {
+            modelId: settings.modelId,
+            reasoningEffort: settings.effort,
+          },
+        },
+      );
     } finally {
       setCreating(false);
     }
@@ -305,6 +337,72 @@ export function ChatBox({
                   }}
                 />
                 <InputGroupAddon align="block-end" className="pt-1 pb-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <InputGroupButton
+                          aria-label="Model and reasoning effort"
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={busy}
+                          className="max-w-40 gap-1 overflow-hidden text-xs"
+                        />
+                      }
+                    >
+                      <span className="truncate">{selectedModel.label}</span>
+                      {selectedModel.effortMode !== "none" && (
+                        <>
+                          <span className="text-muted-foreground">·</span>
+                          <span className="text-muted-foreground capitalize">
+                            {settings.effort}
+                          </span>
+                        </>
+                      )}
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" side="top" className="w-64">
+                      <DropdownMenuRadioGroup
+                        value={settings.modelId}
+                        onValueChange={(value) => {
+                          if (value) updateSettings({ modelId: value });
+                        }}
+                      >
+                        <DropdownMenuLabel>Model</DropdownMenuLabel>
+                        {MODEL_OPTIONS.map((option) => (
+                          <DropdownMenuRadioItem key={option.id} value={option.id}>
+                            {option.label}
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                      {selectedModel.effortMode !== "none" && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuRadioGroup
+                            value={settings.effort}
+                            onValueChange={(value) => {
+                              if (value) {
+                                updateSettings({
+                                  effort: value as ReasoningEffort,
+                                });
+                              }
+                            }}
+                          >
+                            <DropdownMenuLabel>Reasoning effort</DropdownMenuLabel>
+                            {EFFORTS.map((effort) => (
+                              <DropdownMenuRadioItem
+                                key={effort}
+                                value={effort}
+                                className="capitalize"
+                              >
+                                {effort}
+                              </DropdownMenuRadioItem>
+                            ))}
+                          </DropdownMenuRadioGroup>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
                   <DropdownMenu>
                     <DropdownMenuTrigger
                       render={
