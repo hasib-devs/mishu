@@ -16,6 +16,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { MESSAGE_ANIMATIONS } from "@/lib/message-animations";
 import { Markdown } from "@/components/markdown";
 import { Trace } from "@/components/ui/trace";
+import { ThinkingDots } from "@/components/ui/typing-indicator";
 import { StepRow } from "@/components/chat-rows";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
@@ -69,6 +70,12 @@ export function ChatBox() {
   const busy = status === "submitted" || status === "streaming";
   const text = draft ?? "";
   const canSend = text.trim().length > 0 && !busy;
+  const caret = (
+    <span
+      aria-hidden
+      className="ms-0.5 inline-block h-[1em] w-[2px] translate-y-[0.15em] rounded-sm bg-foreground animate-caret-blink motion-reduce:animate-none"
+    />
+  );
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -134,6 +141,15 @@ export function ChatBox() {
                     aria-busy={busy}
                     className="gap-6 px-8 py-0"
                   >
+                    {busy && messages.at(-1)?.role === "user" && (
+                      <MessageScrollerItem key="thinking" scrollAnchor>
+                        <Message>
+                          <MessageContent>
+                            <ThinkingDots />
+                          </MessageContent>
+                        </Message>
+                      </MessageScrollerItem>
+                    )}
                     {messages.map((message) => {
                       if (message.role === "user") {
                         return (
@@ -167,9 +183,13 @@ export function ChatBox() {
                       const reply = messageContent(message);
 
                       return (
-                        <MessageScrollerItem
+                        <MotionMessageScrollerItem
                           key={message.id}
                           messageId={message.id}
+                          scrollAnchor={streaming}
+                          variants={MESSAGE_ANIMATIONS["slide-up"].variants}
+                          initial={shouldReduceMotion ? false : "initial"}
+                          animate="animate"
                         >
                           <Message>
                             <MessageContent className="gap-3">
@@ -184,10 +204,16 @@ export function ChatBox() {
                                   ))}
                                 </Trace>
                               )}
-                              {reply && <Markdown>{reply}</Markdown>}
+                              {reply ? (
+                                <Markdown caret={streaming ? caret : undefined}>
+                                  {reply}
+                                </Markdown>
+                              ) : streaming ? (
+                                <ThinkingDots />
+                              ) : null}
                             </MessageContent>
                           </Message>
-                        </MessageScrollerItem>
+                        </MotionMessageScrollerItem>
                       );
                     })}
                   </MessageScrollerContent>

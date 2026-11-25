@@ -6,7 +6,6 @@ import {
   JsonToSseTransformStream,
   UI_MESSAGE_STREAM_HEADERS,
 } from "ai";
-import { runCommand } from "./runCommand.js";
 
 const NVIDIA_BASE = "https://integrate.api.nvidia.com/v1";
 const CORS_HEADERS = {
@@ -204,15 +203,17 @@ async function handleChatCompletions(request: Request, env: Env): Promise<Respon
     apiKey: env.VITE_NVIDIA_API_KEY,
   }).languageModel(modelName);
 
-  const uiMessages = (record.messages ?? []) as Array<Omit<UIMessage, "id">>;
-  const modelMessages = await convertToModelMessages(uiMessages, {
-    tools: { runCommand },
+  const rawMessages = (record.messages ?? []) as Array<Record<string, unknown>>;
+  const uiMessages = rawMessages.map((m) => {
+    if (Array.isArray(m.parts)) return m as Omit<UIMessage, "id">;
+    const content = typeof m.content === "string" ? m.content : "";
+    return { ...m, parts: content ? [{ type: "text", text: content }] : [] } as Omit<UIMessage, "id">;
   });
+  const modelMessages = await convertToModelMessages(uiMessages, { tools: {} });
 
   const result = streamText({
     model,
     messages: modelMessages,
-    tools: { runCommand },
   });
 
   const uiStream = result.toUIMessageStream();

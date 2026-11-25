@@ -31,28 +31,61 @@ export function toApiMessages(messages: ChatMessage[]) {
   }));
 }
 
+// The worker streams AI SDK UI-message chunks. Only these types are safe to
+// forward verbatim; anything else falls through to the legacy delta parser.
+const FORWARDED_CHUNK_TYPES = new Set([
+  "start",
+  "start-step",
+  "finish-step",
+  "finish",
+  "abort",
+  "text-start",
+  "text-delta",
+  "text-end",
+  "reasoning-start",
+  "reasoning-delta",
+  "reasoning-end",
+  "error",
+]);
+
 function emitBlock(
   controller: ReadableStreamDefaultController<UIMessageChunk>,
   block: string,
   id: string,
+  state: { textOpen: boolean },
 ) {
-  let dataLine = "";
   for (const line of block.split("\n")) {
-    if (line.startsWith("data: ")) {
-      dataLine = line.slice(6);
+    if (!line.startsWith("data:")) continue;
+    const dataLine = line.slice(5).trim();
+    if (!dataLine || dataLine === "[DONE]") continue;
+
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(dataLine) as Record<string, unknown>;
+    } catch {
+      // ignore malformed SSE data lines
+      continue;
     }
-  }
-  if (!dataLine || dataLine === "[DONE]") return;
-  try {
-    const parsed = JSON.parse(dataLine);
+
+    if (typeof parsed.type === "string" && FORWARDED_CHUNK_TYPES.has(parsed.type)) {
+      if (parsed.type === "text-start") state.textOpen = true;
+      if (parsed.type === "text-end") state.textOpen = false;
+      controller.enqueue(parsed as unknown as UIMessageChunk);
+      continue;
+    }
+
+    // Legacy OpenAI-style chat-completions chunk.
+    const choice = (parsed.choices as Array<Record<string, unknown>> | undefined)?.[0];
     const delta =
-      parsed.choices?.[0]?.delta?.content ??
-      parsed.choices?.[0]?.message?.content;
+      (choice?.delta as Record<string, unknown> | undefined)?.content ??
+      (choice?.message as Record<string, unknown> | undefined)?.content;
     if (typeof delta === "string" && delta.length > 0) {
+      if (!state.textOpen) {
+        controller.enqueue({ type: "text-start", id });
+        state.textOpen = true;
+      }
       controller.enqueue({ type: "text-delta", delta, id });
     }
-  } catch {
-    // ignore malformed SSE data lines
   }
 }
 
@@ -63,8 +96,10 @@ export function toUiMessageChunkStream(
   if (!body) {
     return new ReadableStream<UIMessageChunk>({
       start(controller) {
+        controller.enqueue({ type: "start" });
         controller.enqueue({ type: "text-start", id });
         controller.enqueue({ type: "text-end", id });
+        controller.enqueue({ type: "finish" });
         controller.close();
       },
     });
@@ -75,7 +110,7 @@ export function toUiMessageChunkStream(
 
   return new ReadableStream<UIMessageChunk>({
     async start(controller) {
-      controller.enqueue({ type: "text-start", id });
+      const state = { textOpen: false };
       try {
         const reader = body.getReader();
         try {
@@ -87,19 +122,19 @@ export function toUiMessageChunkStream(
             while ((blockEnd = buffer.indexOf("\n\n")) !== -1) {
               const block = buffer.slice(0, blockEnd);
               buffer = buffer.slice(blockEnd + 2);
-              emitBlock(controller, block, id);
+              emitBlock(controller, block, id, state);
             }
           }
           buffer += decoder.decode();
           if (buffer.trim()) {
-            emitBlock(controller, buffer, id);
+            emitBlock(controller, buffer, id, state);
             buffer = "";
           }
         } finally {
           reader.releaseLock();
         }
       } finally {
-        controller.enqueue({ type: "text-end", id });
+        if (state.textOpen) controller.enqueue({ type: "text-end", id });
         controller.close();
       }
     },
@@ -139,10 +174,12 @@ export const transport = {
       const errorText = await response.text().catch(() => "");
       return new ReadableStream<UIMessageChunk>({
         start(controller) {
+          controller.enqueue({ type: "start" });
           controller.enqueue({
             type: "error",
             errorText: `HTTP ${response.status}: ${errorText}`,
           });
+          controller.enqueue({ type: "finish" });
           controller.close();
         },
       });

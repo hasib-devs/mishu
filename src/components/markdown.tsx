@@ -249,16 +249,37 @@ function parseMarkdown(markdown: string): ReactNode[] {
   return nodes;
 }
 
+type MarkdownProps = React.HTMLAttributes<HTMLDivElement> & {
+  /** Rendered inline at the end of the last block, e.g. a streaming caret. */
+  caret?: ReactNode;
+};
+
 export function Markdown({
   className,
   children,
+  caret,
   ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+}: MarkdownProps) {
   const content = typeof children === "string" ? children : String(children ?? "");
+  const nodes = parseMarkdown(content);
+
+  if (caret) {
+    const lastIndex = nodes.length - 1;
+    const last = nodes[lastIndex];
+    if (
+      React.isValidElement<{ children?: ReactNode }>(last) &&
+      typeof last.type === "string" &&
+      ["p", "h1", "h2", "h3", "h4", "h5", "h6", "li"].includes(last.type)
+    ) {
+      nodes[lastIndex] = React.cloneElement(last, {}, last.props.children, caret);
+    } else {
+      nodes.push(<p key="streaming-caret">{caret}</p>);
+    }
+  }
 
   return (
     <div className={cn("text-foreground", className)} {...props}>
-      {parseMarkdown(content)}
+      {nodes}
     </div>
   );
 }
