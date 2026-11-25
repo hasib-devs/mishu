@@ -214,6 +214,8 @@ async function handleChatCompletions(request: Request, env: Env): Promise<Respon
   const result = streamText({
     model,
     messages: modelMessages,
+    system: "You are a helpful assistant. Keep responses small and concise. Do not explain more than necessary.",
+    maxOutputTokens: 256,
   });
 
   const uiStream = result.toUIMessageStream();

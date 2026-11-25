@@ -40,4 +40,5 @@
 - [ ] Step 1: Add a `caret?: ReactNode` prop to `Markdown` and append it inside the last rendered block so it sits on the same line as streaming text.
 - [ ] Step 2: Add a three-dot `ThinkingDots` indicator with staggered bounce (CSS keyframes in `App.css`).
 - [ ] Step 3: In `ChatBox`, show thinking dots while the last assistant message has no text, a blinking caret while it has text and is streaming, and animate the assistant message in with the existing `slide-up` variants.
-- [ ] Step 4: `pnpm run lint` and `pnpm run build` must pass.
+- [ ] Step 4: Enable `autoScroll` on `MessageScrollerProvider` and anchor only the latest message, so the reply scrolls into view as it types (browser check confirmed the reply was otherwise below the fold).
+- [ ] Step 5: `pnpm run lint` and `pnpm run build` must pass.

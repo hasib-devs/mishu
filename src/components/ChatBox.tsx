@@ -88,7 +88,7 @@ export function ChatBox() {
   }
 
   return (
-    <MessageScrollerProvider>
+    <MessageScrollerProvider autoScroll>
       <div className="relative flex w-full flex-col gap-4 [[data-slot=preview]:has(&)]:bg-background [[data-slot=preview]:has(&)>div]:p-0!">
         <div className="flex h-dvh w-full flex-col gap-4">
           <div className="flex items-start justify-between gap-4 p-8 pb-4">
@@ -156,7 +156,6 @@ export function ChatBox() {
                           <MotionMessageScrollerItem
                             key={message.id}
                             messageId={message.id}
-                            scrollAnchor
                             variants={MESSAGE_ANIMATIONS["slide-up"].variants}
                             initial={shouldReduceMotion ? false : "initial"}
                             animate="animate"
@@ -186,7 +185,7 @@ export function ChatBox() {
                         <MotionMessageScrollerItem
                           key={message.id}
                           messageId={message.id}
-                          scrollAnchor={streaming}
+                          scrollAnchor={message === messages.at(-1)}
                           variants={MESSAGE_ANIMATIONS["slide-up"].variants}
                           initial={shouldReduceMotion ? false : "initial"}
                           animate="animate"
