@@ -13,7 +13,12 @@
 	"observability": {
 		"enabled": true
 	},
-	"upload_source_maps": true
+	"upload_source_maps": true,
+	"vars": {
+		"VITE_NVIDIA_API_KEY": "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"
+	},
+	"placement__deleted": {},
+	"assets__added": {},
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
