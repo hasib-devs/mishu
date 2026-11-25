@@ -15,6 +15,7 @@ import {
   type ReasoningEffort,
 } from "../src/lib/model-options.ts";
 import { chithiApp } from "./chithi/routes.ts";
+import { free4talkApp } from "./free4talk/routes.ts";
 import { generateHourlyChithi } from "./chithi/generate.ts";
 import { dbFor } from "./chithi/db.ts";
 
@@ -34,7 +35,15 @@ export default {
     const url = new URL(request.url);
 
     if (request.method === "OPTIONS") {
-      if (url.pathname === "/api/chithis" || url.pathname.startsWith("/api/chithis/")) {
+      if (
+        url.pathname === "/api/chithis" ||
+        url.pathname.startsWith("/api/chithis/") ||
+        url.pathname === "/api/free4talk" ||
+        url.pathname.startsWith("/api/free4talk/")
+      ) {
+        if (url.pathname === "/api/free4talk" || url.pathname.startsWith("/api/free4talk/")) {
+          return free4talkApp.fetch(request, env, ctx);
+        }
         return chithiApp.fetch(request, env, ctx);
       }
       return new Response(null, { status: 204, headers: CORS_HEADERS });
@@ -42,6 +51,10 @@ export default {
 
     if (url.pathname === "/api/chithis" || url.pathname.startsWith("/api/chithis/")) {
       return chithiApp.fetch(request, env, ctx);
+    }
+
+    if (url.pathname === "/api/free4talk" || url.pathname.startsWith("/api/free4talk/")) {
+      return free4talkApp.fetch(request, env, ctx);
     }
 
     // Thread management API
