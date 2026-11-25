@@ -17,8 +17,8 @@ import {
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
-import { MESSAGE_ANIMATIONS } from "@/lib/message-animations";
-import { Markdown } from "@/components/markdown";
+// import { MESSAGE_ANIMATIONS } from "@/lib/message-animations";
+// import { Markdown } from "@/components/markdown";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
 import { CodeBlock, CodeBlockContent } from "@/components/ui/code-block";
@@ -224,7 +224,10 @@ const transport = {
       });
     }
 
-    return toUiMessageChunkStream(response.body as ReadableStream<Uint8Array>, id);
+    return toUiMessageChunkStream(
+      response.body as ReadableStream<Uint8Array>,
+      id,
+    );
   },
 
   async reconnectToStream(): Promise<ReadableStream<UIMessageChunk> | null> {
@@ -317,7 +320,7 @@ export function ChatBox() {
                             key={message.id}
                             messageId={message.id}
                             scrollAnchor
-                            variants={MESSAGE_ANIMATIONS["slide-up"].variants}
+                            // variants={MESSAGE_ANIMATIONS["slide-up"].variants}
                             initial={shouldReduceMotion ? false : "initial"}
                             animate="animate"
                           >
@@ -340,7 +343,7 @@ export function ChatBox() {
                           part.type === "reasoning" ||
                           part.type === "tool-runCommand",
                       );
-                      const reply = messageContent(message);
+                      //   const reply = messageContent(message);
 
                       return (
                         <MessageScrollerItem
@@ -360,7 +363,7 @@ export function ChatBox() {
                                   ))}
                                 </Trace>
                               )}
-                              {reply && <Markdown>{reply}</Markdown>}
+                              {/* {reply && <Markdown>{reply}</Markdown>} */}
                             </MessageContent>
                           </Message>
                         </MessageScrollerItem>
