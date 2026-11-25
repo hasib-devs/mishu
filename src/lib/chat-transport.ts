@@ -168,10 +168,10 @@ export const transport = {
         stream: true,
         temperature: 0.7,
         top_p: 0.9,
-        max_tokens: 1024,
+        // max_tokens: 1024 * 2,
         frequency_penalty: 0,
         presence_penalty: 0,
-        reasoning_effort: "low",
+        reasoning_effort: "medium",
       }),
       signal: abortSignal,
     });
