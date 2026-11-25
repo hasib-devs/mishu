@@ -14,7 +14,20 @@ import {
   listChithis,
   updateChithi,
   type Chithi,
+  type PaperStyle,
 } from "@/lib/chithi-api";
+
+export type CreateChithiArgs = {
+  content: string;
+  paperStyle?: PaperStyle;
+  generatedFor?: number | null;
+};
+
+export type UpdateChithiArgs = {
+  id: string;
+  content: string;
+  paperStyle?: PaperStyle;
+};
 
 export function useThreads() {
   return useQuery<ThreadSummary[], Error>({
@@ -75,8 +88,9 @@ export function useDeleteChithiMutation() {
 
 export function useCreateChithiMutation() {
   const queryClient = useQueryClient();
-  return useMutation<Chithi, Error, string>({
-    mutationFn: createChithi,
+  return useMutation<Chithi, Error, CreateChithiArgs>({
+    mutationFn: ({ content, paperStyle, generatedFor }) =>
+      createChithi(content, { paperStyle, generatedFor }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["chithis"] });
     },
@@ -85,8 +99,8 @@ export function useCreateChithiMutation() {
 
 export function useUpdateChithiMutation() {
   const queryClient = useQueryClient();
-  return useMutation<Chithi, Error, { id: string; content: string }>({
-    mutationFn: ({ id, content }) => updateChithi(id, content),
+  return useMutation<Chithi, Error, UpdateChithiArgs>({
+    mutationFn: ({ id, content, paperStyle }) => updateChithi(id, { content, paperStyle }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["chithis"] });
     },

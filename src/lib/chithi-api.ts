@@ -1,12 +1,21 @@
+export type PaperStyle = "classic" | "modern" | "minimal";
+
 export type Chithi = {
   id: string;
   content: string;
   source: "manual" | "ai";
   generated_for: number | null;
-  paper_style: string;
+  paper_style: PaperStyle;
   created_at: number;
   updated_at: number;
 };
+
+export type CreateChithiOptions = {
+  paperStyle?: PaperStyle;
+  generatedFor?: number | null;
+};
+
+export type ChithiPatch = string | { content?: string; paperStyle?: PaperStyle };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -30,10 +39,14 @@ export function listChithis(limit = 50): Promise<Chithi[]> {
   return request<Chithi[]>(`/api/chithis?limit=${limit}`);
 }
 
-export function createChithi(content: string): Promise<Chithi> {
+export function createChithi(content: string, options: CreateChithiOptions = {}): Promise<Chithi> {
   return request<Chithi>("/api/chithis", {
     method: "POST",
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({
+      content,
+      ...(options.paperStyle ? { paper_style: options.paperStyle } : {}),
+      ...(options.generatedFor != null ? { generated_for: options.generatedFor } : {}),
+    }),
   });
 }
 
@@ -41,10 +54,16 @@ export function getChithi(id: string): Promise<Chithi> {
   return request<Chithi>(`/api/chithis/${encodeURIComponent(id)}`);
 }
 
-export async function updateChithi(id: string, content: string): Promise<Chithi> {
+export function updateChithi(id: string, patch: ChithiPatch): Promise<Chithi> {
+  const body = typeof patch === "string"
+    ? { content: patch }
+    : {
+        ...(patch.content !== undefined ? { content: patch.content } : {}),
+        ...(patch.paperStyle !== undefined ? { paper_style: patch.paperStyle } : {}),
+      };
   return request<Chithi>(`/api/chithis/${encodeURIComponent(id)}`, {
     method: "PATCH",
-    body: JSON.stringify({ content }),
+    body: JSON.stringify(body),
   });
 }
 

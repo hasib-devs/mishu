@@ -21,3 +21,26 @@ test("client sends the right paths, JSON bodies and errors on non-2xx", async ()
     globalThis.fetch = original;
   }
 });
+
+test("client sends style and slot options and accepts a patch object", async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
+    calls.push({ url: String(url), init });
+    return new Response(JSON.stringify({ id: "c1" }), { status: 201 });
+  }) as typeof fetch;
+  const hour = 1_760_000_000_000 - (1_760_000_000_000 % 3_600_000);
+  try {
+    await createChithi("hi", { paperStyle: "minimal", generatedFor: hour });
+    await updateChithi("c1", { content: "new", paperStyle: "modern" });
+    assert.deepEqual(JSON.parse(String(calls[0].init?.body)), {
+      content: "hi", paper_style: "minimal", generated_for: hour,
+    });
+    assert.equal(calls[1].init?.method, "PATCH");
+    assert.deepEqual(JSON.parse(String(calls[1].init?.body)), {
+      content: "new", paper_style: "modern",
+    });
+  } finally {
+    globalThis.fetch = original;
+  }
+});
