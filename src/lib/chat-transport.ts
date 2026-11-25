@@ -170,8 +170,8 @@ export const transport = {
         top_p: 0.9,
         frequency_penalty: 0,
         presence_penalty: 0,
+        reasoning_effort: "medium",
         // max_tokens: 1024 * 2,
-        // reasoning_effort: "medium",
       }),
       signal: abortSignal,
     });
