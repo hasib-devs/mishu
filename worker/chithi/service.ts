@@ -18,7 +18,7 @@ export type CreateChithiInput = {
   paperStyle?: string;
 };
 
-export type PatchChithiInput = { content: string };
+export type PatchChithiInput = { content?: string; paperStyle?: string };
 
 export function listChithis(db: ChithiDb, limit: number): Promise<ChithiRow[]> {
   return db.select().from(chithis).orderBy(desc(chithis.created_at)).limit(limit);
@@ -62,12 +62,18 @@ export async function updateChithi(
   id: string,
   patch: PatchChithiInput,
 ): Promise<ChithiRow | null> {
-  const { content } = patchChithiSchema.parse({ content: patch.content });
+  const { content, paper_style } = patchChithiSchema.parse({
+    content: patch.content,
+    paper_style: patch.paperStyle,
+  });
   const current = await getChithi(db, id);
   if (!current) return null;
-  await db.update(chithis)
-    .set({ content, updated_at: Math.max(Date.now(), current.updated_at + 1) })
-    .where(eq(chithis.id, id));
+  const values: { content?: string; paper_style?: string; updated_at: number } = {
+    updated_at: Math.max(Date.now(), current.updated_at + 1),
+  };
+  if (content !== undefined) values.content = content;
+  if (paper_style !== undefined) values.paper_style = paper_style;
+  await db.update(chithis).set(values).where(eq(chithis.id, id));
   return getChithi(db, id);
 }
 

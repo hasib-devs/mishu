@@ -79,3 +79,30 @@ test("update never moves updated_at backwards after same-millisecond creates", a
   const updated = await updateChithi(d, newest.id, { content: "edited" });
   assert.ok(updated!.updated_at > newest.updated_at);
 });
+
+const hour = 1_760_000_000_000 - (1_760_000_000_000 % 3_600_000);
+
+test("create persists paper style and hour slot from options", async () => {
+  const d = db();
+  const row = await createChithi(d, { content: "styled", paperStyle: "minimal", generatedFor: hour });
+  assert.equal(row.paper_style, "minimal");
+  assert.equal(row.generated_for, hour);
+});
+
+test("style-only update keeps content and bumps updated_at", async () => {
+  const d = db();
+  const row = await createChithi(d, { content: "keep me" });
+  const updated = await updateChithi(d, row.id, { paperStyle: "modern" });
+  assert.equal(updated?.content, "keep me");
+  assert.equal(updated?.paper_style, "modern");
+  assert.ok(updated!.updated_at > row.updated_at);
+});
+
+test("schemas accept known styles/aligned slots and reject unknown style/misaligned slot", () => {
+  assert.equal(createChithiSchema.safeParse({ content: "hi", paper_style: "minimal" }).success, true);
+  assert.equal(createChithiSchema.safeParse({ content: "hi", generated_for: hour }).success, true);
+  assert.equal(createChithiSchema.safeParse({ content: "hi", paper_style: "fancy" }).success, false);
+  assert.equal(createChithiSchema.safeParse({ content: "hi", generated_for: hour + 1 }).success, false);
+  assert.equal(patchChithiSchema.safeParse({ paper_style: "modern" }).success, true);
+  assert.equal(patchChithiSchema.safeParse({}).success, false);
+});
