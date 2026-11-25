@@ -67,7 +67,10 @@ function emitBlock(
       continue;
     }
 
-    if (typeof parsed.type === "string" && FORWARDED_CHUNK_TYPES.has(parsed.type)) {
+    if (
+      typeof parsed.type === "string" &&
+      FORWARDED_CHUNK_TYPES.has(parsed.type)
+    ) {
       if (parsed.type === "text-start") state.textOpen = true;
       if (parsed.type === "text-end") state.textOpen = false;
       controller.enqueue(parsed as unknown as UIMessageChunk);
@@ -75,7 +78,9 @@ function emitBlock(
     }
 
     // Legacy OpenAI-style chat-completions chunk.
-    const choice = (parsed.choices as Array<Record<string, unknown>> | undefined)?.[0];
+    const choice = (
+      parsed.choices as Array<Record<string, unknown>> | undefined
+    )?.[0];
     const delta =
       (choice?.delta as Record<string, unknown> | undefined)?.content ??
       (choice?.message as Record<string, unknown> | undefined)?.content;
@@ -163,7 +168,7 @@ export const transport = {
         stream: true,
         temperature: 0.7,
         top_p: 0.9,
-        max_tokens: 256,
+        max_tokens: 1024,
         frequency_penalty: 0,
         presence_penalty: 0,
         reasoning_effort: "low",
