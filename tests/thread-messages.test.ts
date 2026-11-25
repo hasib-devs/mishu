@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ChatMessage } from "../src/lib/chat-transport.ts";
-import { toChatMessages, toStoredMessages } from "../src/lib/thread-messages.ts";
+import { messagesToSave, toChatMessages, toStoredMessages } from "../src/lib/thread-messages.ts";
 
 test("reasoning and tool parts survive a store/restore round-trip", () => {
   const original = {
@@ -47,4 +47,31 @@ test("stored content concatenates all text parts", () => {
   } as ChatMessage;
 
   assert.equal(toStoredMessages([message])[0].content, "Hello world");
+});
+
+test("messagesToSave keeps every message for a completed reply", () => {
+  const messages = [
+    { id: "u1", role: "user", parts: [{ type: "text", text: "Hi" }] },
+    { id: "a1", role: "assistant", parts: [{ type: "text", text: "Hello" }] },
+  ] as ChatMessage[];
+
+  assert.deepEqual(messagesToSave(messages, false), messages);
+});
+
+test("messagesToSave drops the broken reply when generation fails or is aborted", () => {
+  const messages = [
+    { id: "u1", role: "user", parts: [{ type: "text", text: "Hi" }] },
+    { id: "a1", role: "assistant", parts: [{ type: "text", text: "Half" }] },
+  ] as ChatMessage[];
+
+  assert.deepEqual(messagesToSave(messages, true), [messages[0]]);
+});
+
+test("messagesToSave omits assistant messages with no parts", () => {
+  const messages = [
+    { id: "u1", role: "user", parts: [{ type: "text", text: "Hi" }] },
+    { id: "a1", role: "assistant", parts: [] },
+  ] as ChatMessage[];
+
+  assert.deepEqual(messagesToSave(messages, false), [messages[0]]);
 });

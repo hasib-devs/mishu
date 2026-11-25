@@ -5,6 +5,7 @@ import ChatBox from "./components/ChatBox";
 import { ThreadSidebar } from "./components/thread-sidebar";
 import type { ChatMessage } from "@/lib/chat-transport";
 import {
+  createThread,
   deleteThread,
   getThread,
   listThreads,
@@ -54,8 +55,27 @@ function App() {
     writeThreadToUrl(id, false);
     setActiveThreadId(id);
     setChatKey(id);
-    void loadThread(id);
+    setLoading(true);
+    void loadThread(id).then((found) => {
+      if (!found) {
+        writeThreadToUrl(null, true);
+        setActiveThreadId(null);
+        setChatKey("draft");
+        setTitle("New chat");
+        setMessages([]);
+      }
+    }).finally(() => setLoading(false));
   }, [loadThread]);
+
+  const ensureThread = React.useCallback(async (): Promise<string> => {
+    if (activeThreadId) return activeThreadId;
+    const created = await createThread();
+    setThreads((current) => [created, ...current]);
+    writeThreadToUrl(created.id, false);
+    setActiveThreadId(created.id);
+    setTitle(created.title);
+    return created.id;
+  }, [activeThreadId]);
 
   const removeThread = React.useCallback(async (id: string) => {
     await deleteThread(id).catch(() => undefined);
@@ -92,10 +112,13 @@ function App() {
       const id = threadIdFromUrl();
       setActiveThreadId(id);
       setChatKey(id ?? "draft");
-      if (id) void loadThread(id);
-      else {
+      setLoading(true);
+      if (id) {
+        void loadThread(id).finally(() => setLoading(false));
+      } else {
         setTitle("New chat");
         setMessages([]);
+        setLoading(false);
       }
     };
     window.addEventListener("popstate", onPopState);
@@ -117,7 +140,16 @@ function App() {
             Loading conversation…
           </div>
         ) : (
-          <ChatBox key={chatKey} title={title} initialMessages={messages} />
+          <ChatBox
+            key={chatKey}
+            title={title}
+            initialMessages={messages}
+            ensureThread={ensureThread}
+            onDeleted={() => {
+              if (activeThreadId) void removeThread(activeThreadId);
+              else newChat();
+            }}
+          />
         )}
       </main>
     </div>

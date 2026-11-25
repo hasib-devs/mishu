@@ -8,8 +8,8 @@ import {
   MessageCircleDashedIcon,
   PaperclipIcon,
   PlusIcon,
-  RotateCwIcon,
   TelescopeIcon,
+  Trash2Icon,
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
@@ -59,27 +59,50 @@ import {
   transport,
   type ChatMessage,
 } from "@/lib/chat-transport";
+import { saveMessages } from "@/lib/thread-api";
+import { messagesToSave, toStoredMessages } from "@/lib/thread-messages";
 
 const MotionMessageScrollerItem = motion.create(MessageScrollerItem);
+
+const STARTER_PROMPTS = [
+  "Explain this codebase",
+  "Write a unit test",
+  "Refactor a function",
+];
+
+type ChatBoxProps = {
+  title: string;
+  initialMessages: ChatMessage[];
+  ensureThread: () => Promise<string>;
+  onDeleted: () => void;
+};
 
 export function ChatBox({
   title,
   initialMessages,
-}: {
-  title: string;
-  initialMessages: ChatMessage[];
-}) {
-  const { messages, sendMessage, setMessages, status } = useChat<ChatMessage>({
+  ensureThread,
+  onDeleted,
+}: ChatBoxProps) {
+  const threadIdRef = React.useRef<string | null>(null);
+  const { messages, sendMessage, status } = useChat<ChatMessage>({
     messages: initialMessages,
     transport: transport as never,
+    onFinish: ({ messages: finalMessages, isAbort, isError }) => {
+      const threadId = threadIdRef.current;
+      if (!threadId) return;
+      const snapshot = messagesToSave(finalMessages, isAbort || isError);
+      if (snapshot.length === 0) return;
+      void saveMessages(threadId, toStoredMessages(snapshot)).catch(() => undefined);
+    },
   });
 
   const [draft, setDraft] = React.useState<string | null>(null);
+  const [creating, setCreating] = React.useState(false);
   const formRef = React.useRef<HTMLFormElement>(null);
   const shouldReduceMotion = useReducedMotion();
   const busy = status === "submitted" || status === "streaming";
   const text = draft ?? "";
-  const canSend = text.trim().length > 0 && !busy;
+  const canSend = text.trim().length > 0 && !busy && !creating;
   const caret = (
     <span
       aria-hidden
@@ -87,23 +110,34 @@ export function ChatBox({
     />
   );
 
+  async function submit(value: string) {
+    const trimmed = value.trim();
+    if (trimmed.length === 0 || busy || creating) return;
+
+    setCreating(true);
+    try {
+      if (!threadIdRef.current) {
+        threadIdRef.current = await ensureThread();
+      }
+      setDraft(null);
+      await sendMessage({ text: trimmed });
+    } finally {
+      setCreating(false);
+    }
+  }
+
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canSend) {
-      return;
-    }
-
-    void sendMessage({ text: text.trim() });
-    setDraft(null);
+    void submit(text);
   }
 
   return (
     <MessageScrollerProvider autoScroll>
       <div className="relative flex w-full flex-col gap-4 [[data-slot=preview]:has(&)]:bg-background [[data-slot=preview]:has(&)>div]:p-0!">
         <div className="flex h-full w-full flex-col gap-4">
-          <div className="flex items-start justify-between gap-4 p-8 pb-4">
-            <div className="flex flex-col gap-1">
-              <div className="font-medium">{title}</div>
+          <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-2 md:px-8">
+            <div className="flex min-w-0 flex-col gap-1">
+              <div className="truncate font-medium">{title}</div>
               <div className="text-sm text-muted-foreground">
                 Ask the agent to change your code.
               </div>
@@ -112,46 +146,57 @@ export function ChatBox({
               <TooltipTrigger
                 render={
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="icon"
-                    aria-label="Reset conversation"
-                    onClick={() => {
-                      setMessages(initialMessages);
-                      setDraft(null);
-                    }}
+                    aria-label="Delete conversation"
+                    onClick={onDeleted}
                     disabled={busy}
                   >
-                    <RotateCwIcon />
+                    <Trash2Icon />
                   </Button>
                 }
               />
               <TooltipContent>
-                <p>Reset</p>
+                <p>Delete conversation</p>
               </TooltipContent>
             </Tooltip>
           </div>
+
           <div className="min-h-0 flex-1">
             {messages.length === 0 ? (
-              <Empty className="h-full">
+              <Empty className="h-full px-6">
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
                     <MessageCircleDashedIcon />
                   </EmptyMedia>
-                  <EmptyTitle className="text-lg">
-                    What should we build?
+                  <EmptyTitle className="text-2xl">
+                    What can I help with?
                   </EmptyTitle>
                   <EmptyDescription className="text-base">
-                    Ask me anything. I can read your code, run commands, and
-                    make changes for you.
+                    Ask a question, or start with one of these.
                   </EmptyDescription>
                 </EmptyHeader>
+                <div className="mt-6 flex flex-wrap justify-center gap-2">
+                  {STARTER_PROMPTS.map((prompt) => (
+                    <Button
+                      key={prompt}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={busy || creating}
+                      onClick={() => void submit(prompt)}
+                    >
+                      {prompt}
+                    </Button>
+                  ))}
+                </div>
               </Empty>
             ) : (
               <MessageScroller>
                 <MessageScrollerViewport>
                   <MessageScrollerContent
                     aria-busy={busy}
-                    className="gap-6 px-8 py-0"
+                    className="gap-6 px-6 py-0 md:px-8"
                   >
                     {busy && messages.at(-1)?.role === "user" && (
                       <MessageScrollerItem key="thinking" scrollAnchor>
@@ -175,7 +220,7 @@ export function ChatBox({
                             <Message align="end">
                               <MessageContent>
                                 <Bubble align="end" variant="muted">
-                                  <BubbleContent className="text-lg">
+                                  <BubbleContent className="text-base leading-relaxed">
                                     {messageContent(message)}
                                   </BubbleContent>
                                 </Bubble>
@@ -218,7 +263,7 @@ export function ChatBox({
                               {reply ? (
                                 <Markdown
                                   caret={streaming ? caret : undefined}
-                                  className="text-lg"
+                                  className="text-base leading-relaxed"
                                 >
                                   {reply}
                                 </Markdown>
@@ -236,15 +281,16 @@ export function ChatBox({
               </MessageScroller>
             )}
           </div>
-          <div className="p-8 pt-0">
+
+          <div className="px-6 pb-5 md:px-8">
             <form ref={formRef} onSubmit={onSubmit} className="w-full">
-              <InputGroup>
+              <InputGroup className="rounded-2xl px-2 py-1 shadow-sm">
                 <InputGroupTextarea
                   value={text}
                   onChange={(event) => setDraft(event.target.value)}
-                  placeholder="Ask the agent..."
+                  placeholder="Ask anything..."
                   aria-label="Message"
-                  className="min-h-14 text-base"
+                  className="min-h-12 border-0 bg-transparent text-base shadow-none focus-visible:ring-0"
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
@@ -252,7 +298,7 @@ export function ChatBox({
                     }
                   }}
                 />
-                <InputGroupAddon align="block-end" className="pt-1">
+                <InputGroupAddon align="block-end" className="pt-1 pb-2">
                   <DropdownMenu>
                     <DropdownMenuTrigger
                       render={
@@ -260,7 +306,7 @@ export function ChatBox({
                           aria-label="Add context"
                           type="button"
                           size="icon-sm"
-                          variant="outline"
+                          variant="ghost"
                         >
                           <PlusIcon />
                         </InputGroupButton>
@@ -291,7 +337,7 @@ export function ChatBox({
                     variant="default"
                     size="icon-sm"
                     disabled={!canSend}
-                    className="ml-auto"
+                    className="ml-auto size-9 rounded-full"
                   >
                     <ArrowUpIcon />
                     <span className="sr-only">Send</span>

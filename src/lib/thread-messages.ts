@@ -31,6 +31,11 @@ export function toChatMessages(rows: StoredMessage[]): ChatMessage[] {
   })) as ChatMessage[];
 }
 
+export function messagesToSave(messages: ChatMessage[], failed: boolean): ChatMessage[] {
+  const candidates = failed ? messages.slice(0, -1) : messages;
+  return candidates.filter((message) => message.role !== "assistant" || message.parts.length > 0);
+}
+
 export function toStoredMessages(messages: ChatMessage[]): StoredMessageInput[] {
   return messages.map((message) => ({
     id: message.id,
