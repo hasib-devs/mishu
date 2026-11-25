@@ -22,12 +22,14 @@ free4talkApp.use(
 );
 
 function clampLimit(raw: string | null, def: number): number {
+  if (!raw) return def;
   const n = Number(raw);
   if (!Number.isFinite(n)) return def;
   return Math.min(100, Math.max(1, Math.floor(n)));
 }
 
 function clampDays(raw: string | null): number {
+  if (!raw) return 7;
   const n = Number(raw);
   if (!Number.isFinite(n)) return 7;
   return Math.min(90, Math.max(1, Math.floor(n)));
