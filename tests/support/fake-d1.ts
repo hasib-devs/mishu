@@ -16,13 +16,13 @@ export function createFakeD1(
   function selectChithis(sql: string, args: unknown[]): Row[] {
     let rows: Array<Row & { __index: number }> = chithis.map((row, index) => ({ ...row, __index: index }));
 
-    const id = /where\s+"?id"?\s*=\s*\?/i.test(sql) ? args[0] : undefined;
+    const id = /where\s+.*?"id"\s*=\s*\?/i.test(sql) ? args[0] : undefined;
     if (id !== undefined) rows = rows.filter((row) => row.id === id);
 
-    const slot = /where\s+"?generated_for"?\s*=\s*\?/i.test(sql) ? args[0] : undefined;
+    const slot = /where\s+.*?"generated_for"\s*=\s*\?/i.test(sql) ? args[0] : undefined;
     if (slot !== undefined) rows = rows.filter((row) => row.generated_for === slot);
 
-    if (/order\s+by\s+"?created_at"?\s+desc/i.test(sql)) {
+    if (/order\s+by\s+.*?"created_at"\s+desc/i.test(sql)) {
       rows.sort((a, b) =>
         Number(b.created_at) - Number(a.created_at) || Number(b.__index) - Number(a.__index)
       );
@@ -66,7 +66,7 @@ export function createFakeD1(
     }
     if (/^update\s+"?chithis"?/i.test(sql)) {
       const assignments =
-        sql.match(/set\s+(.+?)\s+where\s+"?id"?\s*=\s*\?/i)?.[1]
+        sql.match(/set\s+(.+?)\s+where\s+.*?"id"\s*=\s*\?/i)?.[1]
           .split(",")
           .map((part) => part.trim().match(/^"?(\w+)"?\s*=\s*\?$/)?.[1]) ?? [];
       const id = args[args.length - 1];
