@@ -17,6 +17,18 @@
 	"vars": {
 		"VITE_NVIDIA_API_KEY": ""
 	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "mishu-threads",
+			"database_id": "00000000-0000-0000-0000-000000000000"
+		},
+		{
+			"binding": "mishu_threads",
+			"database_name": "mishu-threads",
+			"database_id": "bba24c0c-7bb6-4aee-8ff4-6347404db7e6"
+		}
+	],
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
@@ -24,22 +36,4 @@
 	"placement": {
 		"mode": "smart"
 	}
-	/**
-	 * Bindings
-	 * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
-	 * databases, object storage, AI inference, real-time communication and more.
-	 * https://developers.cloudflare.com/workers/runtime-apis/bindings/
-	 */
-	/**
-	 * Environment Variables
-	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
-	 * Note: Use secrets to store sensitive data.
-	 * https://developers.cloudflare.com/workers/configuration/secrets/
-	 */
-	// "vars": {  "MY_VARIABLE": "production_value" }
-	/**
-	 * Service Bindings (communicate between multiple Workers)
-	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
-	 */
-	// "services": [  {   "binding": "MY_SERVICE",   "service": "my-service"  } ]
 }

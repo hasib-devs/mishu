@@ -81,7 +81,6 @@ type ChatPart = ChatMessage["parts"][number];
 
 type ToolPart = Extract<ChatPart, { type: "tool-runCommand" }>;
 
-const NVIDIA_API_KEY = import.meta.env.VITE_NVIDIA_API_KEY;
 const INVOKE_URL = "/api/chat/completions";
 const MODEL = "nvidia/nemotron-3.5-bolt-e4b";
 
@@ -185,16 +184,11 @@ const transport = {
     messages: ChatMessage[];
     abortSignal: AbortSignal | undefined;
   }): Promise<ReadableStream<UIMessageChunk>> {
-    if (!NVIDIA_API_KEY) {
-      throw new Error("VITE_NVIDIA_API_KEY is not set");
-    }
-
     const id = crypto.randomUUID();
 
     const response = await fetch(INVOKE_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${NVIDIA_API_KEY}`,
         Accept: "text/event-stream",
         "Content-Type": "application/json",
       },

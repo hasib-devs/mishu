@@ -13,4 +13,21 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/react") || id.includes("node_modules/react-dom") || id.includes("node_modules/react-router")) {
+            return "react-vendor";
+          }
+          if (id.includes("node_modules/ai") || id.includes("node_modules/@ai-sdk")) {
+            return "ai-vendor";
+          }
+          if (id.includes("node_modules/shiki")) {
+            return "shiki";
+          }
+        },
+      },
+    },
+  },
 });
