@@ -61,6 +61,7 @@ export async function scrapeFree4Talk(
 
   try {
     const page = await browser.newPage();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     page.on("response", async (response: any) => {
       try {
         if (!response.url().includes("sync/get/free4talk/groups")) return;
