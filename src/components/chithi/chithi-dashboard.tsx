@@ -11,6 +11,7 @@ import { useChithis, useDeleteChithiMutation } from "@/lib/query-hooks";
 import { type Chithi } from "@/lib/chithi-api";
 
 import { ChithiFormDialog } from "./chithi-form-dialog";
+import { paperClass } from "./paper-style-utils";
 
 export function ChithiDashboard() {
   const location = useLocation();
@@ -101,7 +102,7 @@ export function ChithiDashboard() {
                 key={item.id}
                 className="flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-sm"
               >
-                <div className="relative min-h-40 overflow-hidden rounded-xl bg-gradient-to-br from-neutral-100 to-neutral-200 p-5 shadow-inner dark:from-neutral-800 dark:to-neutral-950">
+                <div className={`relative min-h-40 overflow-hidden rounded-xl p-5 shadow-inner ${paperClass(item.paper_style)}`}>
                   <span className="absolute top-2 right-3 font-serif text-3xl opacity-15">
                     চিঠি
                   </span>
@@ -119,6 +120,14 @@ export function ChithiDashboard() {
                   {item.source === "ai" && (
                     <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary">
                       AI
+                    </span>
+                  )}
+                  {item.generated_for !== null && (
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
+                      {new Date(item.generated_for).toLocaleString("bn-BD", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
                     </span>
                   )}
                 </div>
@@ -147,8 +156,8 @@ export function ChithiDashboard() {
         <ChithiFormDialog
           open={formOpen}
           initial={editing}
+          letters={items}
           onClose={() => setFormOpen(false)}
-          onSaved={() => void chithisQuery.refetch()}
         />
       )}
 
