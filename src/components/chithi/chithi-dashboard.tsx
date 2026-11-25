@@ -79,7 +79,11 @@ export function ChithiDashboard() {
             <p className="text-sm text-muted-foreground">Your letters, one page.</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" render={<a href="/">Back to chat</a>} />
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<a href="/">Back to chat</a>}
+            />
             <Button onClick={openCreate}>
               <PlusIcon className="size-4" />
               New Chithi
