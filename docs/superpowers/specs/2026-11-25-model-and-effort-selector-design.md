@@ -50,7 +50,7 @@ Verified against `GET https://integrate.api.nvidia.com/v1/models` (30 ids return
 - `nvidia/nemotron-3.5-bolt-e4b` — Nemotron 3.5 Bolt, default. `effortMode: "thinking"` — only `chat_template_kwargs.enable_thinking` (boolean) is supported; no `reasoning_effort`.
 - `nvidia/nemotron-3.5-lightning-30b-a3b` — Nemotron 3.5 Lightning, fast. `effortMode: "budget"` — `reasoning_budget` integer, low/medium/high → 2048/8192/32768.
 - `nvidia/nemotron-3.5-super-vl-120b-a12b` — Nemotron 3.5 Super VL. `effortMode: "effort"` — native `reasoning_effort` none/low/high.
-- `google/gemma-3-12b-it` — Gemma 3 12B, fast non-reasoning. `effortMode: "none"` — effort control hidden.
+- `mistralai/mistral-large-4-1t-a52b` — Mistral Large 4. `effortMode: "effort"` — native `reasoning_effort` low/high. Gemma 3 12B was originally listed here as a non-reasoning option, but a live call with the configured account returned upstream 404, so it was removed; the `none` branch remains in code for unknown ids.
 
 The earlier candidates `nvidia/nemotron-3-super-120b-a12b` and `qwen/qwen2.5-coder-32b-instruct` are **not** in the live list and must not be used.
 

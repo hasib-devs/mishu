@@ -80,7 +80,7 @@ test("effort maps to the raw field each model family actually accepts", () => {
     effortToRequestOptions("nvidia/nemotron-3.5-super-vl-120b-a12b", "high"),
     { reasoning_effort: "high" },
   );
-  assert.deepEqual(effortToRequestOptions("google/gemma-3-12b-it", "high"), {});
+  assert.deepEqual(effortToRequestOptions("unknown/model", "high"), {});
 });
 ```
 
@@ -91,7 +91,7 @@ Expected: FAIL — module `../src/lib/model-options.ts` not found.
 
 - [ ] **Step 3: Implement `src/lib/model-options.ts`**
 
-Catalog entries, exactly: `nvidia/nemotron-3.5-bolt-e4b` (`thinking`), `nvidia/nemotron-3.5-lightning-30b-a3b` (`budget`), `nvidia/nemotron-3.5-super-vl-120b-a12b` (`effort`), `google/gemma-3-12b-it` (`none`). Labels and descriptions are short human-readable strings; the plan leaves their wording to the implementer.
+Catalog entries, exactly: `nvidia/nemotron-3.5-bolt-e4b` (`thinking`), `nvidia/nemotron-3.5-lightning-30b-a3b` (`budget`), `nvidia/nemotron-3.5-super-vl-120b-a12b` (`effort`), `mistralai/mistral-large-4-1t-a52b` (`effort`). Labels and descriptions are short human-readable strings; the plan leaves their wording to the implementer. Gemma 3 12B was removed from the catalog after a live check returned upstream 404 for the configured account.
 
 `effortToRequestOptions` mapping: `thinking` → `{ chat_template_kwargs: { enable_thinking: effort !== "low" } }`; `budget` → `{ reasoning_budget: { low: 2048, medium: 8192, high: 32768 }[effort] }`; `effort` → `{ reasoning_effort: effort === "high" ? "high" : "low" }` (Super VL accepts none/low/high, not medium); `none` → `{}`. Unknown id → `{}`. Use relative imports only; no `@/` alias.
 
@@ -144,8 +144,8 @@ test("defaults are used when nothing is stored", () => {
 test("settings are independent per thread; draft carries forward", () => {
   store.clear();
   saveSettings(null, { modelId: "nvidia/nemotron-3.5-lightning-30b-a3b", effort: "high" });
-  saveSettings("t1", { modelId: "google/gemma-3-12b-it", effort: "low" });
-  assert.deepEqual(loadSettings("t1"), { modelId: "google/gemma-3-12b-it", effort: "low" });
+  saveSettings("t1", { modelId: "mistralai/mistral-large-4-1t-a52b", effort: "low" });
+  assert.deepEqual(loadSettings("t1"), { modelId: "mistralai/mistral-large-4-1t-a52b", effort: "low" });
   assert.deepEqual(loadSettings(null), { modelId: "nvidia/nemotron-3.5-lightning-30b-a3b", effort: "high" });
   moveDraftSettings("t2");
   assert.deepEqual(loadSettings("t2"), { modelId: "nvidia/nemotron-3.5-lightning-30b-a3b", effort: "high" });
