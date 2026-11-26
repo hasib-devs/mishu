@@ -3,8 +3,24 @@ import test from "node:test";
 import { createFakeD1 } from "./support/fake-d1.ts";
 import { dbFor } from "../worker/chithi/db.ts";
 import { generateHourlyChithi } from "../worker/chithi/generate.ts";
+import { stubNvidiaFetch } from "./support/fake-nvidia-fetch.ts";
 
 const hour = 1_760_000_000_000 - (1_760_000_000_000 % 3_600_000);
+
+test("hourly AI generation writes a letter when the model reasons before answering", async () => {
+  const stub = stubNvidiaFetch("আজকের চিঠি");
+  try {
+    const fake = createFakeD1({ threads: [], messages: [], chithis: [] });
+    const row = await generateHourlyChithi(dbFor(fake.db), { NVIDIA_API_KEY: "test" } as never, {
+      now: hour + 1000,
+    });
+    assert.ok(row);
+    assert.equal(row!.content, "আজকের চিঠি");
+    assert.equal(row!.source, "ai");
+  } finally {
+    stub.restore();
+  }
+});
 
 test("generates an AI letter for the current hour", async () => {
   const fake = createFakeD1({ threads: [], messages: [], chithis: [] });

@@ -35,7 +35,8 @@ async function defaultComplete(
     apiKey,
   }).languageModel("minimaxai/minimax-m3.1-flash");
 
-  const result = await generateText({ model, prompt, maxOutputTokens: 300 });
+  // Reasoning tokens count toward this budget; 300 leaves no quote text.
+  const result = await generateText({ model, prompt, maxOutputTokens: 2048 });
   return result.text;
 }
 

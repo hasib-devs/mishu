@@ -30,7 +30,9 @@ async function defaultComplete(env: Record<string, unknown>, prompt: string): Pr
     baseURL: "https://integrate.api.nvidia.com/v1",
     apiKey,
   }).languageModel(modelId);
-  const result = await generateText({ model, prompt, maxOutputTokens: 300 });
+  // minimax-m3.1-flash reasons before it writes; ~1k tokens can be spent on
+  // reasoning alone, so a 300-token cap leaves no letter text at all.
+  const result = await generateText({ model, prompt, maxOutputTokens: 2048 });
   return result.text;
 }
 

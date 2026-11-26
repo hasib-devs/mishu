@@ -2,6 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { generateQuote } from "../worker/chithi-links/quote.ts";
+import { stubNvidiaFetch } from "./support/fake-nvidia-fetch.ts";
+
+test("generates a quote when the model reasons before answering", async () => {
+  const stub = stubNvidiaFetch("Kindness costs nothing.");
+  try {
+    const quote = await generateQuote({ NVIDIA_API_KEY: "test" } as never);
+    assert.equal(quote, "Kindness costs nothing.");
+  } finally {
+    stub.restore();
+  }
+});
 
 test("generates a trimmed quote", async () => {
   const quote = await generateQuote({}, async () => "  Kindness costs nothing.  ");
