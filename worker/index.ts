@@ -6,6 +6,8 @@ import { generateHourlyChithi } from "./chithi/generate.ts";
 import { dbFor } from "./chithi/db.ts";
 import { rollupAndPrune } from "./free4talk/db.ts";
 import { CORS_HEADERS } from "./http.ts";
+import { CRON_DAILY, CRON_HOURLY } from "./schedule.ts";
+import { handleSchedule } from "./schedule-route.ts";
 import { CHAT_COMPLETIONS_PATH, NVIDIA_BASE, handleChatCompletions } from "./chat.ts";
 import {
   handleAddMessage,
@@ -50,6 +52,10 @@ export default {
 
     if (url.pathname === "/api/chithi-links" || url.pathname.startsWith("/api/chithi-links/")) {
       return chithiLinksApp.fetch(request, env, ctx);
+    }
+
+    if (url.pathname === "/api/schedule" && request.method === "GET") {
+      return handleSchedule();
     }
 
     // Thread management API
@@ -101,7 +107,7 @@ export default {
     return new Response(null, { status: 404 });
   },
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    if (controller.cron === "0 * * * *") {
+    if (controller.cron === CRON_HOURLY) {
       ctx.waitUntil(
         generateHourlyChithi(dbFor(env.DB), env as unknown as Record<string, unknown>)
           .then((row) => {
@@ -124,7 +130,7 @@ export default {
       );
       return;
     }
-    if (controller.cron === "10 0 * * *") {
+    if (controller.cron === CRON_DAILY) {
       const yesterdayUtcDate = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
       ctx.waitUntil(
         rollupAndPrune(env.DB, yesterdayUtcDate).catch((err) => {

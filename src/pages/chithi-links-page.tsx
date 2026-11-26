@@ -2,6 +2,7 @@ import * as React from "react";
 import { Link, useLocation } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 
+import { NextRunCountdown } from "@/components/next-run-countdown";
 import { Button } from "@/components/ui/button";
 import { fetchChithiTargets } from "@/lib/chithi-links-api";
 import type { ChithiTarget } from "@/lib/chithi-links-api";
@@ -89,11 +90,14 @@ export function ChithiLinksPage() {
               Valid chithi.me profiles found in free4talk room topics and user bios.
             </p>
           </div>
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link to={{ pathname: "/", search: location.search }}>Back to chat</Link>}
-          />
+          <div className="flex items-center gap-2">
+            <NextRunCountdown jobId="hourly" label="quotes" />
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link to={{ pathname: "/", search: location.search }}>Back to chat</Link>}
+            />
+          </div>
         </header>
 
         {targetsQ.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}

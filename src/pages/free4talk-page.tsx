@@ -2,6 +2,7 @@ import * as React from "react";
 import { Link, useLocation } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 
+import { NextRunCountdown } from "@/components/next-run-countdown";
 import { Button } from "@/components/ui/button";
 import {
   fetchLatest,
@@ -69,7 +70,10 @@ export function Free4TalkPage() {
             <h1 className="text-2xl font-semibold tracking-tight">Free4Talk Community</h1>
             <p className="text-sm text-muted-foreground">Live community rooms.</p>
           </div>
-          <Button variant="outline" nativeButton={false} render={<Link to={{ pathname: "/", search: location.search }}>Back to chat</Link>} />
+          <div className="flex items-center gap-2">
+            <NextRunCountdown jobId="hourly" label="scrape" />
+            <Button variant="outline" nativeButton={false} render={<Link to={{ pathname: "/", search: location.search }}>Back to chat</Link>} />
+          </div>
         </header>
 
         {latestQ.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}

@@ -6,6 +6,7 @@ import { Link, useLocation } from "react-router";
 import { PenLineIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { NextRunCountdown } from "@/components/next-run-countdown";
 import { Button } from "@/components/ui/button";
 import { useChithis, useDeleteChithiMutation } from "@/lib/query-hooks";
 import { type Chithi } from "@/lib/chithi-api";
@@ -77,6 +78,7 @@ export function ChithiDashboard() {
               <PlusIcon className="size-4" />
               New Chithi
             </Button>
+            <NextRunCountdown jobId="hourly" label="chithi" />
           </div>
         </header>
 
