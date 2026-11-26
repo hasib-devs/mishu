@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link, useLocation } from "react-router";
 
-import { FeatherIcon, MenuIcon, MessageSquareTextIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
+import { FeatherIcon, Link2Icon, MenuIcon, MessageSquareTextIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { groupThreads } from "@/lib/thread-groups";
@@ -49,6 +49,15 @@ export function ThreadSidebar({
       >
         <FeatherIcon className="size-4" />
         Chithi
+      </Link>
+
+      <Link
+        to={{ pathname: "/chithi-links", search: location.search }}
+        onClick={() => setOpen(false)}
+        className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+      >
+        <Link2Icon className="size-4" />
+        Chithi links
       </Link>
 
       <div className="thread-list min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
