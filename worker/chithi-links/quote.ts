@@ -33,7 +33,7 @@ async function defaultComplete(
     name: "nvidia",
     baseURL: "https://integrate.api.nvidia.com/v1",
     apiKey,
-  }).languageModel("meta/llama-3.1-8b-instruct");
+  }).languageModel("minimaxai/minimax-m3.1-flash");
 
   const result = await generateText({ model, prompt, maxOutputTokens: 300 });
   return result.text;

@@ -24,7 +24,7 @@ export function hourStart(ms: number): number {
 async function defaultComplete(env: Record<string, unknown>, prompt: string): Promise<string> {
   const apiKey = (env.NVIDIA_API_KEY as string) || (env.VITE_NVIDIA_API_KEY as string);
   if (!apiKey) throw new Error("NVIDIA_API_KEY is not configured");
-  const modelId = "meta/llama-3.1-8b-instruct";
+  const modelId = "minimaxai/minimax-m3.1-flash";
   const model = createOpenAICompatible({
     name: "nvidia",
     baseURL: "https://integrate.api.nvidia.com/v1",
