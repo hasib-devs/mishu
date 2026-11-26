@@ -1,5 +1,7 @@
 import { chithiApp } from "./chithi/routes.ts";
 import { free4talkApp } from "./free4talk/routes.ts";
+import { chithiLinksApp } from "./chithi-links/routes.ts";
+import { runChithiLinkPipeline } from "./chithi-links/pipeline.ts";
 import { generateHourlyChithi } from "./chithi/generate.ts";
 import { dbFor } from "./chithi/db.ts";
 import { rollupAndPrune } from "./free4talk/db.ts";
@@ -23,8 +25,13 @@ export default {
         url.pathname === "/api/chithis" ||
         url.pathname.startsWith("/api/chithis/") ||
         url.pathname === "/api/free4talk" ||
-        url.pathname.startsWith("/api/free4talk/")
+        url.pathname.startsWith("/api/free4talk/") ||
+        url.pathname === "/api/chithi-links" ||
+        url.pathname.startsWith("/api/chithi-links/")
       ) {
+        if (url.pathname === "/api/chithi-links" || url.pathname.startsWith("/api/chithi-links/")) {
+          return chithiLinksApp.fetch(request, env, ctx);
+        }
         if (url.pathname === "/api/free4talk" || url.pathname.startsWith("/api/free4talk/")) {
           return free4talkApp.fetch(request, env, ctx);
         }
@@ -39,6 +46,10 @@ export default {
 
     if (url.pathname === "/api/free4talk" || url.pathname.startsWith("/api/free4talk/")) {
       return free4talkApp.fetch(request, env, ctx);
+    }
+
+    if (url.pathname === "/api/chithi-links" || url.pathname.startsWith("/api/chithi-links/")) {
+      return chithiLinksApp.fetch(request, env, ctx);
     }
 
     // Thread management API
@@ -103,14 +114,13 @@ export default {
       ctx.waitUntil(
         (async () => {
           const { scrapeFree4Talk } = await import("./free4talk/scrape.ts");
-          return scrapeFree4Talk(env);
-        })()
-          .then((result) => {
-            console.log("free4talk: scraped", result);
-          })
-          .catch((err) => {
-            console.error("free4talk: scrape failed", err);
-          }),
+          const result = await scrapeFree4Talk(env);
+          console.log("free4talk: scraped", result);
+          const links = await runChithiLinkPipeline(env, env.DB);
+          console.log("chithi-links: pipeline", links);
+        })().catch((err) => {
+          console.error("free4talk/chithi-links: post-scrape failed", err);
+        }),
       );
       return;
     }
