@@ -398,7 +398,7 @@ export async function topUsersLatest(
   }));
 }
 
-/** Daily rollup rows, newest day first. */
+/** Daily rollup rows for the last N distinct days, newest day first. */
 export async function dailyStats(
   db: D1Database,
   days: number,
@@ -407,7 +407,8 @@ export async function dailyStats(
     .prepare(
       "SELECT day, language, avg_rooms, peak_rooms, peak_participants, " +
         "peak_hour, unique_owners FROM f4t_daily_stats " +
-        "ORDER BY day DESC LIMIT ?",
+        "WHERE day IN (SELECT DISTINCT day FROM f4t_daily_stats " +
+        "ORDER BY day DESC LIMIT ?) ORDER BY day DESC, language",
     )
     .bind(days)
     .all<DailyStatDbRow>();
