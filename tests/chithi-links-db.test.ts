@@ -3,8 +3,10 @@ import test from "node:test";
 import type { DatabaseSync } from "node:sqlite";
 
 import {
+  listActiveTargets,
   listTargets,
   listUnsentTargets,
+  listUsedQuotes,
   markSendFailed,
   markSent,
   markUnverified,
@@ -140,6 +142,54 @@ test("listUnsentTargets honours the limit", async () => {
       { username: "B", source: "room_topic" },
     ], 1000);
     assert.deepEqual((await listUnsentTargets(db, 1)).map((row) => row.username), ["B"]);
+  } finally {
+    close();
+  }
+});
+
+test("listUsedQuotes returns distinct sent quotes, newest first, within the limit", async () => {
+  const { db, close } = setup();
+  try {
+    await upsertTargets(db, [
+      { username: "A", source: "room_topic" },
+      { username: "B", source: "room_topic" },
+      { username: "C", source: "room_topic" },
+    ], 1000);
+    await markSent(db, "A", 1100, "quote one");
+    await markSent(db, "B", 1200, "quote one");
+    await markSent(db, "C", 1300, "quote two");
+    assert.deepEqual(await listUsedQuotes(db, 10), ["quote two", "quote one"]);
+    assert.deepEqual(await listUsedQuotes(db, 1), ["quote two"]);
+  } finally {
+    close();
+  }
+});
+
+test("listUsedQuotes keeps every quote sent to a target across re-sends", async () => {
+  const { db, close } = setup();
+  try {
+    await upsertTargets(db, [{ username: "A", source: "room_topic" }], 1000);
+    await markSent(db, "A", 1100, "first quote");
+    await markSent(db, "A", 1200, "second quote");
+    assert.deepEqual(await listUsedQuotes(db, 10), ["second quote", "first quote"]);
+  } finally {
+    close();
+  }
+});
+
+test("listActiveTargets includes already-sent targets and excludes inactive ones", async () => {
+  const { db, close } = setup();
+  try {
+    await upsertTargets(db, [
+      { username: "A", source: "room_topic" },
+      { username: "B", source: "room_topic" },
+      { username: "C", source: "room_topic" },
+    ], 1000);
+    await markSent(db, "A", 1100, "old quote");
+    await markVerified(db, "B", "pid-b", 1200, 1);
+    await markUnverified(db, "C", 1300, "paused");
+    assert.deepEqual((await listActiveTargets(db, 10)).map((r) => r.username).sort(), ["A", "B"]);
+    assert.equal((await listActiveTargets(db, 1)).length, 1);
   } finally {
     close();
   }

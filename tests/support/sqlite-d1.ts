@@ -7,6 +7,7 @@ type Row = Record<string, unknown>;
 const MIGRATIONS = [
   fileURLToPath(new URL("../../migrations/0004_free4talk.sql", import.meta.url)),
   fileURLToPath(new URL("../../migrations/0005_chithi_links.sql", import.meta.url)),
+  fileURLToPath(new URL("../../migrations/0006_chithi_quote_history.sql", import.meta.url)),
 ];
 
 /** Values accepted by node:sqlite's bind parameters. */

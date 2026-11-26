@@ -3,6 +3,16 @@ import { generateText } from "ai";
 
 export type QuoteComplete = (prompt: string) => Promise<string>;
 
+export interface QuoteOptions {
+  avoid?: string[];
+}
+
+const MAX_QUOTE_ATTEMPTS = 3;
+
+export function normalizeQuote(text: string): string {
+  return text.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 const THEMES = [
   "kindness",
   "friendship",
@@ -14,13 +24,19 @@ const THEMES = [
   "quiet confidence",
 ];
 
-function promptFor(theme: string): string {
-  return [
+function promptFor(theme: string, avoid: string[]): string {
+  const parts = [
     `Write one short, popular, uplifting quote about ${theme.trim()}.`,
     "It should read like a well-known saying, not a personal message.",
     "Maximum 600 characters. No attribution, no markdown, no quotation marks, no greeting, no signature.",
     "Return only the quote text.",
-  ].join(" ");
+  ];
+  if (avoid.length > 0) {
+    parts.push(
+      `Do not repeat or paraphrase any of these quotes, already used: ${avoid.join("; ")}.`,
+    );
+  }
+  return parts.join(" ");
 }
 
 async function defaultComplete(
@@ -40,13 +56,23 @@ async function defaultComplete(
   return result.text;
 }
 
-/** Generate one fresh AI quote. A random theme per call keeps quotes varied. */
+/**
+ * Generate one fresh AI quote. The model is deterministic for a given prompt,
+ * so a random theme alone repeats famous sayings; pass the quotes already used
+ * in `avoid` and retry if the model still returns one of them.
+ */
 export async function generateQuote(
   env: Record<string, unknown>,
   complete: QuoteComplete = (prompt) => defaultComplete(env, prompt),
+  options: QuoteOptions = {},
 ): Promise<string> {
-  const theme = THEMES[Math.floor(Math.random() * THEMES.length)] ?? "kindness";
-  const text = (await complete(promptFor(theme))).trim();
-  if (text.length === 0) throw new Error("Generated quote is empty");
-  return text.slice(0, 600);
+  const avoid = (options.avoid ?? []).filter((quote) => quote.trim().length > 0);
+  const used = avoid.map(normalizeQuote);
+  for (let attempt = 0; attempt < MAX_QUOTE_ATTEMPTS; attempt += 1) {
+    const theme = THEMES[Math.floor(Math.random() * THEMES.length)] ?? "kindness";
+    const text = (await complete(promptFor(theme, avoid))).trim();
+    if (text.length === 0) throw new Error("Generated quote is empty");
+    if (!used.includes(normalizeQuote(text))) return text.slice(0, 600);
+  }
+  throw new Error("Generated quote duplicates a previously used quote");
 }

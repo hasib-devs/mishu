@@ -1,7 +1,8 @@
 import { extractChithiUsernames } from "./extract.ts";
 import {
+  listActiveTargets,
   listTargets,
-  listUnsentTargets,
+  listUsedQuotes,
   markSendFailed,
   markSent,
   markUnverified,
@@ -9,7 +10,7 @@ import {
   readLatestSnapshotTexts,
   upsertTargets,
 } from "./db.ts";
-import { generateQuote } from "./quote.ts";
+import { generateQuote, normalizeQuote } from "./quote.ts";
 import type { SendResult } from "./sender.ts";
 import { sendLetters } from "./sender.ts";
 import type { ChithiProfile } from "./verify.ts";
@@ -28,7 +29,7 @@ export interface PipelineOptions {
   maxSends?: number;
   readTexts?: (db: D1Database) => Promise<{ topics: string[]; bios: string[] }>;
   verify?: (username: string) => Promise<ChithiProfile | null>;
-  generate?: () => Promise<string>;
+  generate?: (avoid: string[]) => Promise<string>;
   send?: (items: { username: string; content: string }[]) => Promise<SendResult[]>;
 }
 
@@ -53,7 +54,8 @@ export async function runChithiLinkPipeline(
     options.verify ?? ((username: string) => verifyChithiProfile(username));
   const generate =
     options.generate ??
-    (() => generateQuote(env as unknown as Record<string, unknown>));
+    ((avoid: string[]) =>
+      generateQuote(env as unknown as Record<string, unknown>, undefined, { avoid }));
   const send = options.send ?? ((items) => sendLetters(env, items));
 
   // Phase 1 — discover from the newest snapshot's topics and bios.
@@ -74,11 +76,10 @@ export async function runChithiLinkPipeline(
   }
   const discovered = await upsertTargets(db, found, now);
 
-  // Phase 2 — verify profiles not checked before.
+  // Phase 2 — re-check every target each run; a profile may be paused or gone.
   let verified = 0;
   let rejected = 0;
   for (const target of await listTargets(db, 1000)) {
-    if (target.verifiedAt !== null) continue;
     const profile = await verify(target.username);
     if (profile) {
       await markVerified(db, target.username, profile.id, now, 1);
@@ -89,14 +90,22 @@ export async function runChithiLinkPipeline(
     }
   }
 
-  // Phase 3 — a fresh AI quote per user, so no two letters share a source.
+  // Phase 3 — a fresh, unused AI quote per user, so no two letters share a source.
   let sent = 0;
   let failed = 0;
   const items: { username: string; content: string }[] = [];
   const quotes = new Map<string, string>();
-  for (const target of await listUnsentTargets(db, maxSends)) {
+  const used = (await listUsedQuotes(db, 200)).map(normalizeQuote);
+  for (const target of await listActiveTargets(db, maxSends)) {
     try {
-      const quote = await generate();
+      const quote = await generate([...used]);
+      const key = normalizeQuote(quote);
+      if (used.includes(key)) {
+        await markSendFailed(db, target.username, now, "duplicate quote");
+        failed += 1;
+        continue;
+      }
+      used.push(key);
       items.push({ username: target.username, content: quote });
       quotes.set(target.username, quote);
     } catch (err) {

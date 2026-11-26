@@ -159,6 +159,45 @@ export async function listUnsentTargets(
   return results.map(mapTarget);
 }
 
+/** Active targets, including those already sent to — they get a fresh quote each run. */
+export async function listActiveTargets(
+  db: D1Database,
+  limit: number,
+): Promise<TargetRow[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT ${COLUMNS} FROM f4t_chithi_targets ` +
+        "WHERE active = 1 ORDER BY last_seen_at DESC, username DESC LIMIT ?",
+    )
+    .bind(limit)
+    .all<TargetDbRow>();
+  return results.map(mapTarget);
+}
+
+/** Distinct quotes already sent, newest first, capped to keep prompts small. */
+export async function listUsedQuotes(
+  db: D1Database,
+  limit: number,
+): Promise<string[]> {
+  const { results } = await db
+    .prepare(
+      "SELECT quote FROM f4t_chithi_quote_history " +
+        "ORDER BY sent_at DESC, id DESC LIMIT ?",
+    )
+    .bind(limit)
+    .all<{ quote: string }>();
+  const seen = new Set<string>();
+  const quotes: string[] = [];
+  for (const row of results) {
+    const quote = row.quote.trim();
+    const key = quote.toLowerCase();
+    if (!quote || seen.has(key)) continue;
+    seen.add(key);
+    quotes.push(quote);
+  }
+  return quotes;
+}
+
 export async function markVerified(
   db: D1Database,
   username: string,
@@ -196,13 +235,19 @@ export async function markSent(
   now: number,
   quote: string,
 ): Promise<void> {
-  await db
-    .prepare(
-      "UPDATE f4t_chithi_targets SET last_sent_at = ?, last_quote = ?, " +
-        "send_count = send_count + 1, last_error = NULL WHERE LOWER(username) = ?",
-    )
-    .bind(now, quote, username.toLowerCase())
-    .run();
+  await db.batch([
+    db
+      .prepare(
+        "UPDATE f4t_chithi_targets SET last_sent_at = ?, last_quote = ?, " +
+          "send_count = send_count + 1, last_error = NULL WHERE LOWER(username) = ?",
+      )
+      .bind(now, quote, username.toLowerCase()),
+    db
+      .prepare(
+        "INSERT INTO f4t_chithi_quote_history (username, quote, sent_at) VALUES (?, ?, ?)",
+      )
+      .bind(username.toLowerCase(), quote, now),
+  ]);
 }
 
 export async function markSendFailed(

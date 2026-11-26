@@ -37,7 +37,7 @@ function deps(overrides: Record<string, unknown> = {}) {
   return {
     readTexts: readLatestSnapshotTexts,
     verify: async (username: string) => ({ id: `pid-${username}`, username, paused: false }),
-    generate: async () => "a fresh quote",
+    generate: async (avoid: string[] = []) => `fresh quote ${avoid.length + 1}`,
     send: async (items: { username: string }[]) => items.map((item) => ({ username: item.username, ok: true })),
     now: 1000,
     ...overrides,
@@ -74,7 +74,7 @@ test("a link found in both a topic and a bio is stored once", async () => {
   }
 });
 
-test("already-verified targets are not verified again but can be sent to", async () => {
+test("already-verified targets are re-verified on every run", async () => {
   const { db, close } = setup(["https://chithi.me/A"], []);
   try {
     await upsertTargets(db, [{ username: "A", source: "room_topic" }], 500);
@@ -90,8 +90,8 @@ test("already-verified targets are not verified again but can be sent to", async
         },
       }),
     );
-    assert.equal(verifyCalls, 0);
-    assert.deepEqual(result, { discovered: 0, verified: 0, rejected: 0, sent: 1, failed: 0 });
+    assert.equal(verifyCalls, 1);
+    assert.deepEqual(result, { discovered: 0, verified: 1, rejected: 0, sent: 1, failed: 0 });
   } finally {
     close();
   }
@@ -137,15 +137,15 @@ test("the per-run send cap is honoured", async () => {
   }
 });
 
-test("already-sent users are skipped on later runs", async () => {
+test("active users are sent a fresh quote on later runs", async () => {
   const { db, close } = setup(["https://chithi.me/A"], []);
   try {
     await upsertTargets(db, [{ username: "A", source: "room_topic" }], 500);
     await markVerified(db, "A", "pid-a", 600, 1);
     await markSent(db, "A", 700, "old quote");
     const result = await runChithiLinkPipeline({} as Env, db, deps());
-    assert.equal(result.sent, 0);
-    assert.equal((await listTargets(db, 10))[0].lastQuote, "old quote");
+    assert.equal(result.sent, 1);
+    assert.notEqual((await listTargets(db, 10))[0].lastQuote, "old quote");
   } finally {
     close();
   }
@@ -172,7 +172,7 @@ test("a failed send is recorded without blocking the next run", async () => {
     assert.equal(a.lastError, "timeout");
 
     const retry = await runChithiLinkPipeline({} as Env, db, deps({ now: 2000 }));
-    assert.equal(retry.sent, 1);
+    assert.equal(retry.sent, 2);
   } finally {
     close();
   }
@@ -193,6 +193,94 @@ test("a generation failure counts as failed and is not sent", async () => {
     assert.equal(result.sent, 0);
     assert.equal(result.failed, 2);
     assert.ok((await listTargets(db, 10)).every((row) => row.lastError === "AI unavailable"));
+  } finally {
+    close();
+  }
+});
+
+test("every target in a run receives a different quote", async () => {
+  const { db, close } = setup(
+    ["https://chithi.me/A", "https://chithi.me/B", "https://chithi.me/C"],
+    [],
+  );
+  try {
+    const result = await runChithiLinkPipeline({} as Env, db, deps());
+    assert.equal(result.sent, 3);
+    const quotes = (await listTargets(db, 10)).map((row) => row.lastQuote);
+    assert.equal(new Set(quotes).size, 3);
+  } finally {
+    close();
+  }
+});
+
+test("quotes already sent to other users are excluded from generation", async () => {
+  const { db, close } = setup(["https://chithi.me/A"], []);
+  try {
+    await upsertTargets(db, [{ username: "A", source: "room_topic" }], 500);
+    await markSent(db, "A", 500, "old quote");
+    const avoidLists: string[][] = [];
+    await runChithiLinkPipeline(
+      {} as Env,
+      db,
+      deps({
+        generate: async (avoid: string[] = []) => {
+          avoidLists.push([...avoid]);
+          return "brand new quote";
+        },
+      }),
+    );
+    assert.ok(avoidLists[0].includes("old quote"));
+  } finally {
+    close();
+  }
+});
+
+test("a duplicate quote is recorded as a failed send", async () => {
+  const { db, close } = setup(["https://chithi.me/A", "https://chithi.me/B"], []);
+  try {
+    const result = await runChithiLinkPipeline(
+      {} as Env,
+      db,
+      deps({ generate: async () => "same quote" }),
+    );
+    assert.equal(result.sent, 1);
+    assert.equal(result.failed, 1);
+    const rows = await listTargets(db, 10);
+    assert.ok(rows.some((row) => row.lastError === "duplicate quote"));
+  } finally {
+    close();
+  }
+});
+
+test("a target that becomes paused is re-checked and not sent again", async () => {
+  const { db, close } = setup(["https://chithi.me/A"], []);
+  try {
+    let active = true;
+    const verify = async (username: string) =>
+      active ? { id: `pid-${username}`, username, paused: false } : null;
+    const first = await runChithiLinkPipeline({} as Env, db, deps({ verify, now: 1000 }));
+    assert.equal(first.sent, 1);
+
+    active = false;
+    const second = await runChithiLinkPipeline({} as Env, db, deps({ verify, now: 2000 }));
+    assert.equal(second.sent, 0);
+    assert.equal(second.rejected, 1);
+    assert.equal((await listTargets(db, 10))[0].active, 0);
+  } finally {
+    close();
+  }
+});
+
+test("quotes sent in earlier runs are never reused", async () => {
+  const { db, close } = setup(["https://chithi.me/A"], []);
+  try {
+    const quotes: string[] = [];
+    for (const now of [1000, 2000, 3000]) {
+      const result = await runChithiLinkPipeline({} as Env, db, deps({ now }));
+      assert.equal(result.sent, 1);
+      quotes.push((await listTargets(db, 10))[0].lastQuote!);
+    }
+    assert.equal(new Set(quotes).size, 3);
   } finally {
     close();
   }

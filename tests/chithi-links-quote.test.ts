@@ -41,3 +41,37 @@ test("rejects an empty generation", async () => {
     /empty/i,
   );
 });
+
+test("does not return a quote that was already used", async () => {
+  const used = "Courage is not the absence of fear, but the triumph over it.";
+  const prompts: string[] = [];
+  const quote = await generateQuote(
+    {},
+    async (prompt) => {
+      prompts.push(prompt);
+      return prompts.length === 1 ? used : "Fortune favors the bold.";
+    },
+    { avoid: [used] },
+  );
+  assert.equal(quote, "Fortune favors the bold.");
+  assert.equal(prompts.length, 2);
+  assert.match(prompts[0], /already used/i);
+  assert.match(prompts[0], /Courage is not the absence of fear/);
+});
+
+test("gives up instead of sending a duplicate quote", async () => {
+  let calls = 0;
+  await assert.rejects(
+    () =>
+      generateQuote(
+        {},
+        async () => {
+          calls += 1;
+          return "Same quote.";
+        },
+        { avoid: ["Same quote."] },
+      ),
+    /duplicate/i,
+  );
+  assert.equal(calls, 3);
+});
