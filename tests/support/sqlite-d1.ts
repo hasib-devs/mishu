@@ -4,9 +4,10 @@ import { fileURLToPath } from "node:url";
 
 type Row = Record<string, unknown>;
 
-const MIGRATION = fileURLToPath(
-  new URL("../../migrations/0004_free4talk.sql", import.meta.url),
-);
+const MIGRATIONS = [
+  fileURLToPath(new URL("../../migrations/0004_free4talk.sql", import.meta.url)),
+  fileURLToPath(new URL("../../migrations/0005_chithi_links.sql", import.meta.url)),
+];
 
 /** Values accepted by node:sqlite's bind parameters. */
 type BindValue = null | number | bigint | string | Uint8Array;
@@ -42,7 +43,9 @@ interface Statement {
 export function createSqliteD1() {
   const sqlite = new DatabaseSync(":memory:");
   sqlite.exec("PRAGMA foreign_keys = ON");
-  sqlite.exec(readFileSync(MIGRATION, "utf8"));
+  for (const migration of MIGRATIONS) {
+    sqlite.exec(readFileSync(migration, "utf8"));
+  }
 
   function makeStatement(sql: string, args: unknown[]): Statement {
     const runSync = () => sqlite.prepare(sql).run(...args.map(toBindValue));
