@@ -1,11 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 import { Link, useLocation } from "react-router";
 
 import { NextRunCountdown } from "@/components/next-run-countdown";
 import { Button } from "@/components/ui/button";
-import type { ChithiTarget } from "@/lib/chithi-links-api";
-import { fetchChithiTargets } from "@/lib/chithi-links-api";
+import { Input } from "@/components/ui/input";
+import type { ChithiTarget, HourlyRunResult } from "@/lib/chithi-links-api";
+import { fetchChithiTargets, triggerHourlyRun } from "@/lib/chithi-links-api";
 import { FeatherIcon } from "lucide-react";
 
 function formatTime(epochMs: number | null): string {
@@ -79,9 +80,29 @@ function TargetRow({ target }: { target: ChithiTarget }) {
 
 export function ChithiLinksPage() {
   const location = useLocation();
+  const queryClient = useQueryClient();
+  const [token, setToken] = React.useState(
+    () => sessionStorage.getItem("manual-run-token") ?? "",
+  );
+  const [runMessage, setRunMessage] = React.useState<string | null>(null);
   const targetsQ = useQuery({
     queryKey: ["chithi-links"],
     queryFn: () => fetchChithiTargets(100),
+  });
+  const run = useMutation({
+    mutationFn: () => triggerHourlyRun(token.trim()),
+    onSuccess: (result: HourlyRunResult) => {
+      sessionStorage.setItem("manual-run-token", token.trim());
+      queryClient.invalidateQueries({ queryKey: ["chithi-links"] });
+      const chithi = result.chithi.ok ? "letter ok" : `letter failed: ${result.chithi.error}`;
+      const scrape = result.scrape.ok ? "scrape ok" : `scrape failed: ${result.scrape.error}`;
+      const links = result.links.ok
+        ? `${result.links.value.sent} quotes sent`
+        : `links failed: ${result.links.error}`;
+      setRunMessage(`${chithi} · ${scrape} · ${links}`);
+    },
+    onError: (err) =>
+      setRunMessage(`Run failed: ${err instanceof Error ? err.message : String(err)}`),
   });
   const targets = React.useMemo(() => targetsQ.data ?? [], [targetsQ.data]);
 
@@ -101,8 +122,23 @@ export function ChithiLinksPage() {
               bios.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <NextRunCountdown jobId="hourly" label="quotes" />
+            <Input
+              type="password"
+              aria-label="Manual run token"
+              placeholder="Run token"
+              value={token}
+              onChange={(event) => setToken(event.target.value)}
+              className="w-32"
+            />
+            <Button
+              variant="outline"
+              disabled={run.isPending || token.trim().length === 0}
+              onClick={() => run.mutate()}
+            >
+              {run.isPending ? "Running…" : "Run now"}
+            </Button>
             <Button
               variant="outline"
               nativeButton={false}
@@ -121,6 +157,12 @@ export function ChithiLinksPage() {
             </Link>
           </div>
         </header>
+
+        {runMessage && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {runMessage}
+          </p>
+        )}
 
         {targetsQ.isLoading && (
           <p className="text-sm text-muted-foreground">Loading…</p>

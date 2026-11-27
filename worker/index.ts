@@ -1,9 +1,7 @@
 import { chithiApp } from "./chithi/routes.ts";
 import { free4talkApp } from "./free4talk/routes.ts";
 import { chithiLinksApp } from "./chithi-links/routes.ts";
-import { runChithiLinkPipeline } from "./chithi-links/pipeline.ts";
-import { generateHourlyChithi } from "./chithi/generate.ts";
-import { dbFor } from "./chithi/db.ts";
+import { runHourlyJobs } from "./hourly.ts";
 import { rollupAndPrune } from "./free4talk/db.ts";
 import { CORS_HEADERS } from "./http.ts";
 import { CRON_DAILY, CRON_HOURLY } from "./schedule.ts";
@@ -109,23 +107,10 @@ export default {
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     if (controller.cron === CRON_HOURLY) {
       ctx.waitUntil(
-        generateHourlyChithi(dbFor(env.DB), env as unknown as Record<string, unknown>)
-          .then((row) => {
-            console.log("chithi: generated", row?.id ?? "slot taken");
-          })
-          .catch((err) => {
-            console.error("chithi: generation failed", err);
-          }),
-      );
-      ctx.waitUntil(
-        (async () => {
-          const { scrapeFree4Talk } = await import("./free4talk/scrape.ts");
-          const result = await scrapeFree4Talk(env);
-          console.log("free4talk: scraped", result);
-          const links = await runChithiLinkPipeline(env, env.DB);
-          console.log("chithi-links: pipeline", links);
-        })().catch((err) => {
-          console.error("free4talk/chithi-links: post-scrape failed", err);
+        runHourlyJobs(env).then((result) => {
+          console.log("hourly: chithi", result.chithi);
+          console.log("hourly: scrape", result.scrape);
+          console.log("hourly: links", result.links);
         }),
       );
       return;
