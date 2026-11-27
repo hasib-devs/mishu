@@ -14,6 +14,7 @@ import {
   isSupportedModel,
   type ReasoningEffort,
 } from "../src/lib/model-options.ts";
+import { MAX_OUTPUT_TOKENS, SYSTEM_PROMPT } from "./chat-prompt.ts";
 import { jsonError } from "./http.ts";
 
 export const NVIDIA_BASE = "https://integrate.api.nvidia.com/v1";
@@ -85,12 +86,16 @@ export async function handleChatCompletions(request: Request, env: Env): Promise
   const result = streamText({
     model,
     messages: modelMessages,
-    system: "You are a helpful assistant. Keep responses small and concise. Do not explain more than necessary.",
+    system: SYSTEM_PROMPT,
     providerOptions: { nvidia: requestOptions },
-    maxOutputTokens: 2048,
+    maxOutputTokens: MAX_OUTPUT_TOKENS,
+    abortSignal: request.signal,
   });
 
-  const uiStream = result.toUIMessageStream();
+  const uiStream = result.toUIMessageStream({
+    onError: () =>
+      "The assistant could not complete this response. Please try again.",
+  });
   const sseStream = uiStream.pipeThrough(new JsonToSseTransformStream());
   const byteStream = sseStream.pipeThrough(new TextEncoderStream());
 

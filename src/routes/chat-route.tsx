@@ -18,6 +18,11 @@ export function ChatRoute() {
   const deleteThreadMutation = useDeleteThreadMutation();
 
   const [sessionNonce, setSessionNonce] = React.useState(0);
+  // A new thread is created when the first message is sent, but the URL only
+  // changes once that message has been saved. Navigating mid-send would remount
+  // ChatBox and abort the stream. The key stays URL-derived so Back/Forward
+  // and deep links always show the thread named in the URL.
+  const createdThreadIdRef = React.useRef<string | null>(null);
   const [pendingDelete, setPendingDelete] = React.useState<{
     id: string | null;
     title: string;
@@ -32,17 +37,28 @@ export function ChatRoute() {
   const ensureThread = React.useCallback(async (): Promise<string> => {
     if (threadId) return threadId;
     const created = await createThread();
-    navigate({ pathname: "/", search: `?thread=${created.id}` }, { replace: true });
+    createdThreadIdRef.current = created.id;
     return created.id;
-  }, [threadId, navigate]);
+  }, [threadId]);
+
+  const handleSaved = React.useCallback(() => {
+    void threadsQuery.refetch();
+    const created = createdThreadIdRef.current;
+    if (!threadId && created) {
+      createdThreadIdRef.current = null;
+      navigate({ pathname: "/", search: `?thread=${created}` }, { replace: true });
+    }
+  }, [threadId, navigate, threadsQuery]);
 
   const newChat = React.useCallback(() => {
+    createdThreadIdRef.current = null;
     navigate({ pathname: "/", search: "" });
     setSessionNonce((current) => current + 1);
   }, [navigate]);
 
   const selectThread = React.useCallback(
     (id: string) => {
+      createdThreadIdRef.current = null;
       navigate({ pathname: "/", search: `?thread=${id}` });
     },
     [navigate],
@@ -95,7 +111,7 @@ export function ChatRoute() {
             threadId={threadId}
             initialMessages={messages}
             ensureThread={ensureThread}
-            onSaved={() => void threadsQuery.refetch()}
+            onSaved={handleSaved}
             onDeleted={() => requestDelete(threadId)}
           />
         )}

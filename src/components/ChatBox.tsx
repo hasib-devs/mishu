@@ -4,17 +4,15 @@ import * as React from "react";
 import { useChat } from "@ai-sdk/react";
 import {
   ArrowUpIcon,
-  GlobeIcon,
+  CircleAlertIcon,
   MessageCircleDashedIcon,
-  PaperclipIcon,
-  PlusIcon,
-  TelescopeIcon,
   Trash2Icon,
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
 import { MESSAGE_ANIMATIONS } from "@/lib/message-animations";
 import { Markdown } from "@/components/markdown";
+import { MessageActions } from "@/components/message-actions";
 import { Trace } from "@/components/ui/trace";
 import { ThinkingDots } from "@/components/ui/typing-indicator";
 import { StepRow } from "@/components/chat-rows";
@@ -23,7 +21,6 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -76,9 +73,9 @@ import {
 const MotionMessageScrollerItem = motion.create(MessageScrollerItem);
 
 const STARTER_PROMPTS = [
-  "Explain this codebase",
-  "Write a unit test",
-  "Refactor a function",
+  "Compare two options in a table",
+  "Write a TypeScript example and explain it",
+  "Give me a step-by-step plan",
 ];
 
 type ChatBoxProps = {
@@ -99,7 +96,14 @@ export function ChatBox({
   onDeleted,
 }: ChatBoxProps) {
   const threadIdRef = React.useRef<string | null>(threadId);
-  const { messages, sendMessage, status } = useChat<ChatMessage>({
+  const {
+    messages,
+    sendMessage,
+    status,
+    error,
+    regenerate,
+    clearError,
+  } = useChat<ChatMessage>({
     messages: initialMessages,
     transport: transport as never,
     onFinish: ({ messages: finalMessages, isAbort, isError }) => {
@@ -261,24 +265,29 @@ export function ChatBox({
                         );
                       }
 
-                      const streaming = busy && message === messages.at(-1);
+                      const last = message === messages.at(-1);
+                      const streaming = busy && last;
+                      const failed = error !== undefined && last;
                       const steps = message.parts.filter(
                         (part) =>
                           part.type === "reasoning" ||
                           part.type === "tool-runCommand",
                       );
                       const reply = messageContent(message);
+                      const completed = !busy && !failed && reply.length > 0;
 
                       return (
                         <MotionMessageScrollerItem
                           key={message.id}
                           messageId={message.id}
-                          scrollAnchor={message === messages.at(-1)}
+                          scrollAnchor={last}
                           variants={MESSAGE_ANIMATIONS["slide-up"].variants}
                           initial={shouldReduceMotion ? false : "initial"}
                           animate="animate"
                         >
-                          <Message className="max-w-[90%] md:max-w-[80%]">
+                          <Message
+                            className={`max-w-[90%] md:max-w-[80%]${failed ? " opacity-70" : ""}`}
+                          >
                             <MessageContent className="gap-3">
                               {steps.length > 0 && (
                                 <Trace>
@@ -302,10 +311,45 @@ export function ChatBox({
                                 <ThinkingDots />
                               ) : null}
                             </MessageContent>
+                            {completed ? (
+                              <MessageActions
+                                text={reply}
+                                threadId={threadId}
+                                messageId={message.id}
+                                canRegenerate={last}
+                                onRegenerate={() =>
+                                  void regenerate({ body: toRequestBody(settings) })
+                                }
+                              />
+                            ) : null}
                           </Message>
                         </MotionMessageScrollerItem>
                       );
                     })}
+                    {error ? (
+                      <MessageScrollerItem key="chat-error" scrollAnchor>
+                        <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm">
+                          <CircleAlertIcon className="mt-0.5 size-4 shrink-0 text-destructive" />
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium">Response failed</div>
+                            <div className="text-muted-foreground break-words">
+                              {error.message}
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              clearError();
+                              void regenerate({ body: toRequestBody(settings) });
+                            }}
+                          >
+                            Retry
+                          </Button>
+                        </div>
+                      </MessageScrollerItem>
+                    ) : null}
                   </MessageScrollerContent>
                 </MessageScrollerViewport>
                 <MessageScrollerButton />
@@ -396,39 +440,6 @@ export function ChatBox({
                     </DropdownMenuContent>
                   </DropdownMenu>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <InputGroupButton
-                          aria-label="Add context"
-                          type="button"
-                          size="icon-sm"
-                          variant="ghost"
-                        >
-                          <PlusIcon />
-                        </InputGroupButton>
-                      }
-                    />
-                    <DropdownMenuContent
-                      align="start"
-                      side="top"
-                      className="w-44"
-                    >
-                      <DropdownMenuItem>
-                        <PaperclipIcon />
-                        Add Photos & Files
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem>
-                        <TelescopeIcon />
-                        Deep Research
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <GlobeIcon />
-                        Web Search
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                   <InputGroupButton
                     type="submit"
                     variant="default"

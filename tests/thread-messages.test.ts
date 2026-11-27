@@ -75,3 +75,26 @@ test("messagesToSave omits assistant messages with no parts", () => {
 
   assert.deepEqual(messagesToSave(messages, false), [messages[0]]);
 });
+
+test("messagesToSave keeps the user prompt when no assistant reply was produced", () => {
+  const messages = [
+    { id: "u1", role: "user", parts: [{ type: "text", text: "Hi" }] },
+  ] as ChatMessage[];
+
+  assert.deepEqual(messagesToSave(messages, true), messages);
+});
+
+test("messagesToSave drops only the failed continuation in a multi-turn thread", () => {
+  const messages = [
+    { id: "u1", role: "user", parts: [{ type: "text", text: "First" }] },
+    { id: "a1", role: "assistant", parts: [{ type: "text", text: "Answer one" }] },
+    { id: "u2", role: "user", parts: [{ type: "text", text: "Second" }] },
+    { id: "a2", role: "assistant", parts: [{ type: "text", text: "Half" }] },
+  ] as ChatMessage[];
+
+  assert.deepEqual(messagesToSave(messages, true), [
+    messages[0],
+    messages[1],
+    messages[2],
+  ]);
+});

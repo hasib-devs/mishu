@@ -1,287 +1,181 @@
 import * as React from "react";
-import type { ReactNode } from "react";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { cn } from "cn";
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+import {
+  CodeBlock,
+  CodeBlockActions,
+  CodeBlockContent,
+  CodeBlockCopyButton,
+  CodeBlockHeader,
+  CodeBlockTitle,
+} from "@/components/ui/code-block";
+import { useHighlightedCode } from "@/hooks/use-highlighted-code";
+import { safeHref } from "@/lib/safe-href";
+
+function nodeText(node: React.ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(nodeText).join("");
+  if (React.isValidElement<{ children?: React.ReactNode }>(node)) {
+    return nodeText(node.props.children);
+  }
+  return "";
 }
 
-function parseInline(text: string): ReactNode[] {
-  const nodes: ReactNode[] = [];
-  const regex =
-    /`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|\*([^*]+)\*|~~([^~]+)~~/g;
-  let lastIndex = 0;
-
-  for (const match of text.matchAll(regex)) {
-    if (match.index !== lastIndex) {
-      const before = text.slice(lastIndex, match.index);
-      if (before) {
-        nodes.push(<span key={lastIndex}>{escapeHtml(before)}</span>);
-      }
-    }
-
-    const [, code, linkText, linkHref, bold, italic, strikethrough] = match;
-    lastIndex = match.index + match[0].length;
-
-    if (code) {
-      nodes.push(<code key={lastIndex}>{code}</code>);
-    } else if (linkText !== undefined) {
-      nodes.push(
-        <a key={lastIndex} href={linkHref} className="text-primary underline">
-          {parseInline(linkText)}
-        </a>,
-      );
-    } else if (bold) {
-      nodes.push(<strong key={lastIndex}>{parseInline(bold)}</strong>);
-    } else if (italic) {
-      nodes.push(<em key={lastIndex}>{parseInline(italic)}</em>);
-    } else if (strikethrough) {
-      nodes.push(<s key={lastIndex}>{parseInline(strikethrough)}</s>);
-    }
-  }
-
-  if (lastIndex < text.length) {
-    const rest = text.slice(lastIndex);
-    if (rest) {
-      nodes.push(<span key={lastIndex}>{escapeHtml(rest)}</span>);
-    }
-  }
-
-  return nodes;
-}
-
-function parseCodeBlock(lines: string[], start: number): { nodes: ReactNode[]; nextIndex: number } {
-  let i = start;
-  i++;
-
-  const code: string[] = [];
-  while (i < lines.length && !lines[i]!.trimStart().startsWith("```")) {
-    code.push(lines[i]!);
-    i++;
-  }
-  i++; // skip the closing fence
-
-  return {
-    nodes: [
-      <pre
-        key={i}
-        className="overflow-x-auto bg-background rounded-md px-3 py-3 font-mono text-sm leading-relaxed"
-      >
-        <code>{code.join("\n")}</code>
-      </pre>,
-    ],
-    nextIndex: i,
-  };
-}
-
-function parseBlockquote(lines: string[], start: number): { nodes: ReactNode[]; nextIndex: number } {
-  let i = start;
-  const contents: string[] = [];
-
-  while (i < lines.length && lines[i]!.trimStart().startsWith(">")) {
-    const content = lines[i]!
-      .trimStart()
-      .replace(/^>\s?/, "")
-      .trim();
-    if (content) {
-      contents.push(content);
-    }
-    i++;
-  }
-
-  return {
-    nodes: [
-      <blockquote
-        key={i}
-        className="border-border border-l-4 pl-4 text-muted-foreground italic"
-      >
-        {parseInline(contents.join(" "))}
-      </blockquote>,
-    ],
-    nextIndex: i,
-  };
-}
-
-function parseList(lines: string[], start: number): { nodes: ReactNode[]; nextIndex: number } {
-  let i = start;
-  const items: string[] = [];
-  const isBullet = /^[-*]\s+/.test(lines[i]!.trim());
-
-  items.push(lines[i]!.trim());
-  i++;
-
-  while (i < lines.length) {
-    const trimmed = lines[i]!.trim();
-    const isNextBullet = /^[-*]\s+/.test(trimmed);
-    const isNextOrdered = /^\d+\.\s+/.test(trimmed);
-    const startsNewBlock =
-      trimmed === "" ||
-      /^(#{1,6})\s+/.test(trimmed) ||
-      trimmed.startsWith("```") ||
-      trimmed.startsWith(">") ||
-      isNextBullet ||
-      isNextOrdered;
-
-    if (startsNewBlock) {
-      break;
-    }
-
-    items.push(trimmed);
-    i++;
-  }
-
-  const tag = isBullet ? "ul" : "ol";
-  return {
-    nodes: [
-      React.createElement(
-        tag,
-        { key: i, className: "list-inside list-disc space-y-1" },
-        items.map((item, idx) => (
-          <li key={idx}>{parseInline(item)}</li>
-        )),
-      ),
-    ],
-    nextIndex: i,
-  };
-}
-
-function parseParagraph(lines: string[], start: number): { nodes: ReactNode[]; nextIndex: number } {
-  let i = start;
-  const contents: string[] = [];
-
-  while (i < lines.length) {
-    const trimmed = lines[i]!.trim();
-    const startsNewBlock =
-      trimmed === "" ||
-      /^(#{1,6})\s+/.test(trimmed) ||
-      trimmed.startsWith("```") ||
-      trimmed.startsWith(">") ||
-      /^[-*]\s+/.test(trimmed) ||
-      /^\d+\.\s+/.test(trimmed);
-
-    if (startsNewBlock) {
-      break;
-    }
-
-    contents.push(trimmed);
-    i++;
-  }
-
-  return {
-    nodes: [
-      <p key={i} className="leading-relaxed">
-        {parseInline(contents.join(" "))}
-      </p>,
-    ],
-    nextIndex: i,
-  };
-}
-
-function parseMarkdown(markdown: string): ReactNode[] {
-  const lines = markdown.split(/\r?\n/);
-  const nodes: ReactNode[] = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i]!;
-
-    if (line.trim() === "") {
-      i++;
-      continue;
-    }
-
-    if (line.trimStart().startsWith("```")) {
-      const result = parseCodeBlock(lines, i);
-      nodes.push(...result.nodes);
-      i = result.nextIndex;
-      continue;
-    }
-
-    const heading = line.match(/^(#{1,6})\s+(.*)$/);
-    if (heading) {
-      const level = heading[1]!.length;
-      const headingProps = {
-        key: i,
-        className: "text-lg font-semibold leading-tight first:mt-0",
-      };
-      nodes.push(
-        React.createElement(
-          `h${level}` as keyof React.JSX.IntrinsicElements,
-          headingProps,
-          parseInline(heading[2] ?? ""),
-        ),
-      );
-      i++;
-      continue;
-    }
-
-    if (/^(-{3,}|\*{3,})\s*$/.test(line.trim())) {
-      nodes.push(<hr key={i} className="my-4 border-border" />);
-      i++;
-      continue;
-    }
-
-    if (line.trimStart().startsWith(">")) {
-      const result = parseBlockquote(lines, i);
-      nodes.push(...result.nodes);
-      i = result.nextIndex;
-      continue;
-    }
-
-    const listMatch = line.match(/^(?:[-*]|\d+\.)\s+(.*)$/);
-    if (listMatch) {
-      const result = parseList(lines, i);
-      nodes.push(...result.nodes);
-      i = result.nextIndex;
-      continue;
-    }
-
-    const paragraph = parseParagraph(lines, i);
-    nodes.push(...paragraph.nodes);
-    i = paragraph.nextIndex;
-  }
-
-  return nodes;
-}
-
-type MarkdownProps = React.HTMLAttributes<HTMLDivElement> & {
-  /** Rendered inline at the end of the last block, e.g. a streaming caret. */
-  caret?: ReactNode;
-};
-
-export function Markdown({
-  className,
-  children,
-  caret,
-  ...props
-}: MarkdownProps) {
-  const content = typeof children === "string" ? children : String(children ?? "");
-  const nodes = parseMarkdown(content);
-
-  if (caret) {
-    const lastIndex = nodes.length - 1;
-    const last = nodes[lastIndex];
-    if (
-      React.isValidElement<{ children?: ReactNode }>(last) &&
-      typeof last.type === "string" &&
-      ["p", "h1", "h2", "h3", "h4", "h5", "h6", "li"].includes(last.type)
-    ) {
-      nodes[lastIndex] = React.cloneElement(last, {}, last.props.children, caret);
-    } else {
-      nodes.push(<p key="streaming-caret">{caret}</p>);
-    }
-  }
-
+function HighlightedLines({ code, language }: { code: string; language: string }) {
+  const lines = useHighlightedCode(code, language);
   return (
-    <div className={cn("text-foreground", className)} {...props}>
-      {nodes}
-    </div>
+    <>
+      {lines.map((line, index) => (
+        <span key={index} className="block whitespace-pre">
+          {line}
+        </span>
+      ))}
+    </>
   );
 }
 
+function CodeFence({ code, language }: { code: string; language: string }) {
+  return (
+    <CodeBlock className="my-3">
+      <CodeBlockHeader>
+        <CodeBlockTitle>{language || "Code"}</CodeBlockTitle>
+        <CodeBlockActions>
+          <CodeBlockCopyButton value={code} />
+        </CodeBlockActions>
+      </CodeBlockHeader>
+      <CodeBlockContent>
+        <HighlightedLines code={code} language={language} />
+      </CodeBlockContent>
+    </CodeBlock>
+  );
+}
 
+const components: Components = {
+  pre({ children }) {
+    const child = React.Children.toArray(children)[0];
+    let code: string;
+    let language = "";
+
+    if (React.isValidElement<{ className?: string; children?: React.ReactNode }>(child)) {
+      code = nodeText(child.props.children);
+      language = /language-([\w+#.-]+)/.exec(child.props.className ?? "")?.[1] ?? "";
+    } else {
+      code = nodeText(children);
+    }
+
+    return <CodeFence code={code.replace(/\n$/, "")} language={language} />;
+  },
+
+  code({ children, className }) {
+    return (
+      <code
+        className={cn(
+          "rounded bg-muted px-1.5 py-0.5 font-mono text-[0.9em]",
+          className,
+        )}
+      >
+        {children}
+      </code>
+    );
+  },
+
+  a({ href, children }) {
+    const safe = safeHref(href);
+    if (!safe) return <>{children}</>;
+    return (
+      <a
+        href={safe}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary underline underline-offset-2"
+      >
+        {children}
+      </a>
+    );
+  },
+
+  h1: ({ children }) => (
+    <h1 className="mt-5 mb-2 text-xl font-semibold first:mt-0">{children}</h1>
+  ),
+  h2: ({ children }) => (
+    <h2 className="mt-5 mb-2 text-lg font-semibold first:mt-0">{children}</h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="mt-4 mb-2 font-semibold first:mt-0">{children}</h3>
+  ),
+  h4: ({ children }) => (
+    <h4 className="mt-4 mb-1 font-medium first:mt-0">{children}</h4>
+  ),
+  h5: ({ children }) => (
+    <h5 className="mt-4 mb-1 font-medium first:mt-0">{children}</h5>
+  ),
+  h6: ({ children }) => (
+    <h6 className="mt-4 mb-1 font-medium first:mt-0">{children}</h6>
+  ),
+  p: ({ children }) => <p className="my-2 leading-relaxed">{children}</p>,
+  ul: ({ children }) => (
+    <ul className="my-2 list-inside list-disc space-y-1">{children}</ul>
+  ),
+  ol: ({ children }) => (
+    <ol className="my-2 list-inside list-decimal space-y-1">{children}</ol>
+  ),
+  li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+  blockquote: ({ children }) => (
+    <blockquote className="border-border my-3 border-l-4 pl-4 text-muted-foreground italic">
+      {children}
+    </blockquote>
+  ),
+  hr: () => <hr className="border-border my-4" />,
+  table: ({ children }) => (
+    <div className="my-3 overflow-x-auto">
+      <table className="w-full border-collapse text-sm">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => <thead className="bg-muted/50">{children}</thead>,
+  tbody: ({ children }) => <tbody>{children}</tbody>,
+  tr: ({ children }) => (
+    <tr className="border-border border-b last:border-0">{children}</tr>
+  ),
+  th: ({ children }) => (
+    <th className="px-3 py-2 text-start font-medium">{children}</th>
+  ),
+  td: ({ children }) => <td className="px-3 py-2 align-top">{children}</td>,
+  input({ type, checked }) {
+    if (type !== "checkbox") return <input type={type} />;
+    return (
+      <input
+        type="checkbox"
+        checked={Boolean(checked)}
+        readOnly
+        className="me-1.5 size-3.5 align-middle accent-current"
+      />
+    );
+  },
+};
+
+type MarkdownProps = React.HTMLAttributes<HTMLDivElement> & {
+  /** Rendered inline at the end of the last block, e.g. a streaming caret. */
+  caret?: React.ReactNode;
+};
+
+export function Markdown({ className, children, caret, ...props }: MarkdownProps) {
+  const content = typeof children === "string" ? children : String(children ?? "");
+
+  return (
+    <div
+      className={cn(
+        "text-foreground",
+        caret && "[&>*:nth-last-child(2)]:inline",
+        className,
+      )}
+      {...props}
+    >
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+        {content}
+      </ReactMarkdown>
+      {caret ? <span>{caret}</span> : null}
+    </div>
+  );
+}

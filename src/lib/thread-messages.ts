@@ -32,7 +32,11 @@ export function toChatMessages(rows: StoredMessage[]): ChatMessage[] {
 }
 
 export function messagesToSave(messages: ChatMessage[], failed: boolean): ChatMessage[] {
-  const candidates = failed ? messages.slice(0, -1) : messages;
+  // A failed generation drops only the trailing assistant turn, not earlier
+  // successful answers. The user's question is still part of the conversation
+  // and must survive a refresh or retry.
+  const lastUserIndex = messages.findLastIndex((message) => message.role === "user");
+  const candidates = failed ? messages.slice(0, lastUserIndex + 1) : messages;
   return candidates.filter((message) => message.role !== "assistant" || message.parts.length > 0);
 }
 
