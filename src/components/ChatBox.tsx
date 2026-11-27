@@ -1,22 +1,18 @@
 "use client";
 
-import * as React from "react";
 import { useChat } from "@ai-sdk/react";
 import { useMessageScroller } from "@shadcn/react/message-scroller";
 import {
   ArrowUpIcon,
   CircleAlertIcon,
   MessageCircleDashedIcon,
-  Trash2Icon,
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
+import * as React from "react";
 
-import { MESSAGE_ANIMATIONS } from "@/lib/message-animations";
+import { StepRow } from "@/components/chat-rows";
 import { Markdown } from "@/components/markdown";
 import { MessageActions } from "@/components/message-actions";
-import { Trace } from "@/components/ui/trace";
-import { ThinkingDots } from "@/components/ui/typing-indicator";
-import { StepRow } from "@/components/chat-rows";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,19 +46,8 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  messageContent,
-  transport,
-  type ChatMessage,
-} from "@/lib/chat-transport";
-import { saveMessages } from "@/lib/thread-api";
-import { messagesToSave, toStoredMessages } from "@/lib/thread-messages";
-import { EFFORTS, MODEL_OPTIONS, type ReasoningEffort } from "@/lib/model-options";
+import { Trace } from "@/components/ui/trace";
+import { ThinkingDots } from "@/components/ui/typing-indicator";
 import {
   loadSettings,
   moveDraftSettings,
@@ -70,6 +55,19 @@ import {
   toRequestBody,
   type ChatSettings,
 } from "@/lib/chat-settings";
+import {
+  messageContent,
+  transport,
+  type ChatMessage,
+} from "@/lib/chat-transport";
+import { MESSAGE_ANIMATIONS } from "@/lib/message-animations";
+import {
+  EFFORTS,
+  MODEL_OPTIONS,
+  type ReasoningEffort,
+} from "@/lib/model-options";
+import { saveMessages } from "@/lib/thread-api";
+import { messagesToSave, toStoredMessages } from "@/lib/thread-messages";
 
 const MotionMessageScrollerItem = motion.create(MessageScrollerItem);
 
@@ -125,29 +123,22 @@ export function ChatBox({
   initialMessages,
   ensureThread,
   onSaved,
-  onDeleted,
 }: ChatBoxProps) {
   const threadIdRef = React.useRef<string | null>(threadId);
-  const {
-    messages,
-    sendMessage,
-    status,
-    error,
-    regenerate,
-    clearError,
-  } = useChat<ChatMessage>({
-    messages: initialMessages,
-    transport: transport as never,
-    onFinish: ({ messages: finalMessages, isAbort, isError }) => {
-      const threadId = threadIdRef.current;
-      if (!threadId) return;
-      const snapshot = messagesToSave(finalMessages, isAbort || isError);
-      if (snapshot.length === 0) return;
-      void saveMessages(threadId, toStoredMessages(snapshot))
-        .then(onSaved)
-        .catch(() => undefined);
-    },
-  });
+  const { messages, sendMessage, status, error, regenerate, clearError } =
+    useChat<ChatMessage>({
+      messages: initialMessages,
+      transport: transport as never,
+      onFinish: ({ messages: finalMessages, isAbort, isError }) => {
+        const threadId = threadIdRef.current;
+        if (!threadId) return;
+        const snapshot = messagesToSave(finalMessages, isAbort || isError);
+        if (snapshot.length === 0) return;
+        void saveMessages(threadId, toStoredMessages(snapshot))
+          .then(onSaved)
+          .catch(() => undefined);
+      },
+    });
 
   const [draft, setDraft] = React.useState<string | null>(null);
   const [creating, setCreating] = React.useState(false);
@@ -209,24 +200,6 @@ export function ChatBox({
                 Ask me anything
               </div>
             </div>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Delete conversation"
-                    onClick={onDeleted}
-                    disabled={busy}
-                  >
-                    <Trash2Icon />
-                  </Button>
-                }
-              />
-              <TooltipContent>
-                <p>Delete conversation</p>
-              </TooltipContent>
-            </Tooltip>
           </div>
 
           <div className="grid min-h-0 flex-1">
@@ -355,7 +328,9 @@ export function ChatBox({
                                 messageId={message.id}
                                 canRegenerate={last}
                                 onRegenerate={() =>
-                                  void regenerate({ body: toRequestBody(settings) })
+                                  void regenerate({
+                                    body: toRequestBody(settings),
+                                  })
                                 }
                               />
                             ) : null}
@@ -379,7 +354,9 @@ export function ChatBox({
                             variant="outline"
                             onClick={() => {
                               clearError();
-                              void regenerate({ body: toRequestBody(settings) });
+                              void regenerate({
+                                body: toRequestBody(settings),
+                              });
                             }}
                           >
                             Retry
@@ -434,7 +411,11 @@ export function ChatBox({
                         </>
                       )}
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" side="top" className="w-64">
+                    <DropdownMenuContent
+                      align="start"
+                      side="top"
+                      className="w-64"
+                    >
                       <DropdownMenuRadioGroup
                         value={settings.modelId}
                         onValueChange={(value) => {
@@ -443,7 +424,10 @@ export function ChatBox({
                       >
                         <DropdownMenuLabel>Model</DropdownMenuLabel>
                         {MODEL_OPTIONS.map((option) => (
-                          <DropdownMenuRadioItem key={option.id} value={option.id}>
+                          <DropdownMenuRadioItem
+                            key={option.id}
+                            value={option.id}
+                          >
                             {option.label}
                           </DropdownMenuRadioItem>
                         ))}
@@ -461,7 +445,9 @@ export function ChatBox({
                               }
                             }}
                           >
-                            <DropdownMenuLabel>Reasoning effort</DropdownMenuLabel>
+                            <DropdownMenuLabel>
+                              Reasoning effort
+                            </DropdownMenuLabel>
                             {EFFORTS.map((effort) => (
                               <DropdownMenuRadioItem
                                 key={effort}
