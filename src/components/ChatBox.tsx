@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useChat } from "@ai-sdk/react";
+import { useMessageScroller } from "@shadcn/react/message-scroller";
 import {
   ArrowUpIcon,
   CircleAlertIcon,
@@ -77,6 +78,37 @@ const STARTER_PROMPTS = [
   "Write a TypeScript example and explain it",
   "Give me a step-by-step plan",
 ];
+
+/** Keeps the view pinned to the newest turn. Smoothness comes from the
+ * viewport's `scroll-smooth` CSS, so the primitive's own follow logic stays
+ * in charge of measuring streamed content. */
+function TurnAutoScroll({
+  count,
+  status,
+  reduceMotion,
+}: {
+  count: number;
+  status: string;
+  reduceMotion: boolean;
+}) {
+  const { scrollToEnd } = useMessageScroller();
+  const busy = status === "submitted" || status === "streaming";
+
+  React.useEffect(() => {
+    if (count === 0) return;
+    scrollToEnd({ behavior: reduceMotion ? "auto" : "smooth" });
+  }, [count, reduceMotion, scrollToEnd]);
+
+  // The primitive keeps up during streaming; one exact correction once the
+  // reply settles prevents the final line from staying just above the fold.
+  React.useEffect(() => {
+    if (count === 0 || busy) return;
+    const timeout = setTimeout(() => scrollToEnd(), 200);
+    return () => clearTimeout(timeout);
+  }, [busy, count, scrollToEnd]);
+
+  return null;
+}
 
 type ChatBoxProps = {
   title: string;
@@ -168,8 +200,8 @@ export function ChatBox({
 
   return (
     <MessageScrollerProvider autoScroll>
-      <div className="max-h-dvh relative flex w-full flex-col gap-4 [[data-slot=preview]:has(&)]:bg-background [[data-slot=preview]:has(&)>div]:p-0!">
-        <div className="flex max-h-dvh h-full w-full flex-col gap-4">
+      <div className="relative flex h-full min-h-0 w-full flex-col gap-4 [[data-slot=preview]:has(&)]:bg-background [[data-slot=preview]:has(&)>div]:p-0!">
+        <div className="flex min-h-0 w-full flex-1 flex-col gap-4">
           <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-2 md:px-8">
             <div className="flex min-w-0 flex-col gap-1">
               <div className="truncate font-medium">{title}</div>
@@ -228,6 +260,11 @@ export function ChatBox({
               </Empty>
             ) : (
               <MessageScroller>
+                <TurnAutoScroll
+                  count={messages.length}
+                  status={status}
+                  reduceMotion={Boolean(shouldReduceMotion)}
+                />
                 <MessageScrollerViewport>
                   <MessageScrollerContent
                     aria-busy={busy}
