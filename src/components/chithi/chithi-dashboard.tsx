@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Link, useLocation } from "react-router";
 
-import { PenLineIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { Link2Icon, PenLineIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { NextRunCountdown } from "@/components/next-run-countdown";
@@ -50,7 +50,9 @@ export function ChithiDashboard() {
     try {
       await deleteMutation.mutateAsync(target.id);
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : "Could not delete the letter");
+      setDeleteError(
+        err instanceof Error ? err.message : "Could not delete the letter",
+      );
     }
   }
 
@@ -62,9 +64,18 @@ export function ChithiDashboard() {
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Chithi</h1>
-            <p className="text-sm text-muted-foreground">Your letters, one page.</p>
+            <p className="text-sm text-muted-foreground">
+              Your letters, one page.
+            </p>
           </div>
           <div className="flex gap-2">
+            <NextRunCountdown jobId="hourly" label="chithi" />
+
+            <Button onClick={openCreate}>
+              <PlusIcon className="size-4" />
+              New Chithi
+            </Button>
+
             <Button
               variant="outline"
               nativeButton={false}
@@ -74,22 +85,30 @@ export function ChithiDashboard() {
                 </Link>
               }
             />
-            <Button onClick={openCreate}>
-              <PlusIcon className="size-4" />
-              New Chithi
-            </Button>
-            <NextRunCountdown jobId="hourly" label="chithi" />
+
+            <Link
+              to={{ pathname: "/chithi-links", search: location.search }}
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            >
+              <Link2Icon className="size-4" />
+              Chithi links
+            </Link>
           </div>
         </header>
 
         {displayError && (
-          <p role="alert" className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive">
+          <p
+            role="alert"
+            className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive"
+          >
             {displayError}
           </p>
         )}
 
         {loading ? (
-          <p className="py-16 text-center text-sm text-muted-foreground">Loading letters…</p>
+          <p className="py-16 text-center text-sm text-muted-foreground">
+            Loading letters…
+          </p>
         ) : items.length === 0 ? (
           <div className="rounded-2xl border border-dashed py-20 text-center">
             <p className="text-sm text-muted-foreground">No letters yet.</p>
@@ -104,7 +123,9 @@ export function ChithiDashboard() {
                 key={item.id}
                 className="flex flex-col gap-4 rounded-2xl border bg-card p-4 shadow-sm"
               >
-                <div className={`relative min-h-40 overflow-hidden rounded-xl p-5 shadow-inner ${paperClass(item.paper_style)}`}>
+                <div
+                  className={`relative min-h-40 overflow-hidden rounded-xl p-5 shadow-inner ${paperClass(item.paper_style)}`}
+                >
                   <span className="absolute top-2 right-3 font-serif text-3xl opacity-15">
                     চিঠি
                   </span>
@@ -134,7 +155,11 @@ export function ChithiDashboard() {
                   )}
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => openEdit(item)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openEdit(item)}
+                  >
                     <PenLineIcon className="size-4" />
                     Edit
                   </Button>
