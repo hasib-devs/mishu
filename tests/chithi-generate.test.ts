@@ -49,3 +49,18 @@ test("throws when the model returns empty text", async () => {
   const d = dbFor(fake.db);
   await assert.rejects(() => generateHourlyChithi(d, {} as never, { now: hour, complete: async () => "   " }));
 });
+
+test("uses the requested vibe in the letter prompt", async () => {
+  const fake = createFakeD1({ threads: [], messages: [], chithis: [] });
+  let prompt = "";
+  await generateHourlyChithi(dbFor(fake.db), {} as never, {
+    now: hour + 1000,
+    vibe: "মিষ্টি",
+    complete: async (text) => {
+      prompt = text;
+      return "মিষ্টি চিঠি";
+    },
+  });
+  assert.match(prompt, /মিষ্টি/);
+  assert.doesNotMatch(prompt, /language[- ]learning/i);
+});

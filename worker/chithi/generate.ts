@@ -1,21 +1,25 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText } from "ai";
 
+import { pickVibe } from "../ai-vibes.ts";
 import { createChithi, SlotTakenError } from "./service.ts";
 import type { ChithiDb } from "./db.ts";
 import type { ChithiRow } from "./schema.ts";
 
 export type GenerateOptions = {
   now?: number;
+  vibe?: string;
   complete?: (prompt: string) => Promise<string>;
 };
 
-const PROMPT = [
-  "Write one short letter (চিঠি) in Bengali (Bangla) for a language-learning community.",
-  "Tone: warm, encouraging, friendly. One short paragraph.",
-  "Maximum 600 characters. No greeting headers, no signature, no markdown.",
-  "Return only the letter text.",
-].join(" ");
+export function letterPrompt(vibe: string): string {
+  return [
+    "Write one short letter (চিঠি) in Bengali (Bangla).",
+    `Mood/vibe: ${vibe.trim()}. Let that mood shape every line.`,
+    "Warm and natural, one short paragraph. Maximum 600 characters. No greeting headers, no signature, no markdown.",
+    "Return only the letter text.",
+  ].join(" ");
+}
 
 export function hourStart(ms: number): number {
   return Math.floor(ms / 3_600_000) * 3_600_000;
@@ -44,7 +48,8 @@ export async function generateHourlyChithi(
   const now = options.now ?? Date.now();
   const hour = hourStart(now);
   const complete = options.complete ?? ((prompt: string) => defaultComplete(env, prompt));
-  const text = (await complete(PROMPT)).trim();
+  const vibe = options.vibe ?? pickVibe();
+  const text = (await complete(letterPrompt(vibe))).trim();
   if (text.length === 0) throw new Error("Generated letter is empty");
   const content = text.slice(0, 600);
   try {

@@ -1,6 +1,8 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText } from "ai";
 
+import { pickVibe } from "../ai-vibes.ts";
+
 export type QuoteComplete = (prompt: string) => Promise<string>;
 
 export interface QuoteOptions {
@@ -13,20 +15,9 @@ export function normalizeQuote(text: string): string {
   return text.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-const THEMES = [
-  "kindness",
-  "friendship",
-  "language learning",
-  "courage",
-  "new beginnings",
-  " gratitude",
-  "curiosity",
-  "quiet confidence",
-];
-
-function promptFor(theme: string, avoid: string[]): string {
+export function quotePrompt(vibe: string, avoid: string[]): string {
   const parts = [
-    `Write one short, popular, uplifting quote about ${theme.trim()}.`,
+    `Write one short, popular, uplifting quote with a ${vibe.trim()} vibe.`,
     "It should read like a well-known saying, not a personal message.",
     "Maximum 600 characters. No attribution, no markdown, no quotation marks, no greeting, no signature.",
     "Return only the quote text.",
@@ -69,8 +60,8 @@ export async function generateQuote(
   const avoid = (options.avoid ?? []).filter((quote) => quote.trim().length > 0);
   const used = avoid.map(normalizeQuote);
   for (let attempt = 0; attempt < MAX_QUOTE_ATTEMPTS; attempt += 1) {
-    const theme = THEMES[Math.floor(Math.random() * THEMES.length)] ?? "kindness";
-    const text = (await complete(promptFor(theme, avoid))).trim();
+    const vibe = pickVibe();
+    const text = (await complete(quotePrompt(vibe, avoid))).trim();
     if (text.length === 0) throw new Error("Generated quote is empty");
     if (!used.includes(normalizeQuote(text))) return text.slice(0, 600);
   }
