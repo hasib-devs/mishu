@@ -20,7 +20,9 @@ function StatusPill({ active, sent }: { active: boolean; sent: boolean }) {
       ? "border-emerald-500/40 text-emerald-600"
       : "border-amber-500/40 text-amber-600";
   return (
-    <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${className}`}>
+    <span
+      className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${className}`}
+    >
       {label}
     </span>
   );
@@ -29,7 +31,7 @@ function StatusPill({ active, sent }: { active: boolean; sent: boolean }) {
 function TargetRow({ target }: { target: ChithiTarget }) {
   return (
     <tr className="border-t border-border/60 align-top">
-      <td className="py-3 pr-4">
+      <td className="py-3 px-4">
         <a
           className="font-medium underline-offset-2 hover:underline"
           href={`https://chithi.me/${encodeURIComponent(target.username)}`}
@@ -42,16 +44,19 @@ function TargetRow({ target }: { target: ChithiTarget }) {
           first seen {formatTime(target.firstSeenAt)}
         </div>
       </td>
-      <td className="py-3 pr-4 text-sm">
+      <td className="py-3 px-4 text-sm">
         {target.source === "room_topic" ? "Room topic" : "User bio"}
       </td>
-      <td className="py-3 pr-4">
-        <StatusPill active={target.active === 1} sent={target.lastSentAt !== null} />
+      <td className="py-3 px-4">
+        <StatusPill
+          active={target.active === 1}
+          sent={target.lastSentAt !== null}
+        />
       </td>
       <td className="py-3 pr-4 text-sm text-muted-foreground">
         {formatTime(target.lastSeenAt)}
       </td>
-      <td className="py-3 pr-4 text-sm">
+      <td className="py-3 px-4 text-sm">
         {target.lastQuote ? (
           <span title={target.lastQuote}>
             {target.lastQuote.length > 90
@@ -62,7 +67,9 @@ function TargetRow({ target }: { target: ChithiTarget }) {
           <span className="text-muted-foreground">—</span>
         )}
         {target.lastError && (
-          <div className="mt-1 text-xs text-destructive">{target.lastError}</div>
+          <div className="mt-1 text-xs text-destructive">
+            {target.lastError}
+          </div>
         )}
       </td>
     </tr>
@@ -85,9 +92,12 @@ export function ChithiLinksPage() {
       <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 md:p-8">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Chithi links</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Chithi links
+            </h1>
             <p className="text-sm text-muted-foreground">
-              Valid chithi.me profiles found in free4talk room topics and user bios.
+              Valid chithi.me profiles found in free4talk room topics and user
+              bios.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -95,15 +105,26 @@ export function ChithiLinksPage() {
             <Button
               variant="outline"
               nativeButton={false}
-              render={<Link to={{ pathname: "/", search: location.search }}>Back to chat</Link>}
+              render={
+                <Link to={{ pathname: "/", search: location.search }}>
+                  Back to chat
+                </Link>
+              }
             />
           </div>
         </header>
 
-        {targetsQ.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+        {targetsQ.isLoading && (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        )}
         {targetsQ.isError && (
-          <p role="alert" className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive">
-            {targetsQ.error instanceof Error ? targetsQ.error.message : "Failed to load"}
+          <p
+            role="alert"
+            className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive"
+          >
+            {targetsQ.error instanceof Error
+              ? targetsQ.error.message
+              : "Failed to load"}
           </p>
         )}
 
@@ -125,7 +146,8 @@ export function ChithiLinksPage() {
         {!targetsQ.isLoading && targets.length === 0 ? (
           <div className="rounded-2xl border border-dashed py-20 text-center">
             <p className="text-sm text-muted-foreground">
-              No chithi.me links yet — the next hourly scrape will populate this list.
+              No chithi.me links yet — the next hourly scrape will populate this
+              list.
             </p>
           </div>
         ) : (
