@@ -1,11 +1,16 @@
 import * as React from "react";
-import { Link, useLocation } from "react-router";
 
-import { FeatherIcon, Link2Icon, MenuIcon, MessageSquareTextIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
+import {
+  MenuIcon,
+  MessageSquareTextIcon,
+  PlusIcon,
+  Trash2Icon,
+  XIcon,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { groupThreads } from "@/lib/thread-groups";
 import type { ThreadSummary } from "@/lib/thread-api";
+import { groupThreads } from "@/lib/thread-groups";
 
 type ThreadSidebarProps = {
   threads: ThreadSummary[];
@@ -23,7 +28,7 @@ export function ThreadSidebar({
   onDelete,
 }: ThreadSidebarProps) {
   const [open, setOpen] = React.useState(false);
-  const location = useLocation();
+  // const location = useLocation();
 
   const panel = (
     <div className="flex h-full w-full flex-col gap-3 bg-muted/30 p-3">
@@ -42,7 +47,8 @@ export function ThreadSidebar({
         </Button>
       </div>
 
-      <Link
+      {/* Temporary Commended */}
+      {/* <Link
         to={{ pathname: "/chithi", search: location.search }}
         onClick={() => setOpen(false)}
         className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
@@ -58,7 +64,7 @@ export function ThreadSidebar({
       >
         <Link2Icon className="size-4" />
         Chithi links
-      </Link>
+      </Link> */}
 
       <div className="thread-list min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
         {threads.length === 0 ? (
