@@ -45,7 +45,7 @@ function TargetRow({ target }: { target: ChithiTarget }) {
         </div>
       </td>
       <td className="py-3 px-4 text-sm">
-        {target.source === "room_topic" ? "Room topic" : "User bio"}
+        {target.source === "room_topic" ? "Topic" : "Bio"}
       </td>
       <td className="py-3 px-4">
         <StatusPill
