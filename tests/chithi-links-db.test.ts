@@ -9,6 +9,7 @@ import {
   listUsedQuotes,
   markSendFailed,
   markSent,
+  markNotSeen,
   markUnverified,
   markVerified,
   readLatestSnapshotTexts,
@@ -172,6 +173,21 @@ test("listUsedQuotes keeps every quote sent to a target across re-sends", async 
     await markSent(db, "A", 1100, "first quote");
     await markSent(db, "A", 1200, "second quote");
     assert.deepEqual(await listUsedQuotes(db, 10), ["second quote", "first quote"]);
+  } finally {
+    close();
+  }
+});
+
+test("markNotSeen deactivates a target without changing verified_at", async () => {
+  const { db, close } = setup();
+  try {
+    await upsertTargets(db, [{ username: "A", source: "room_topic" }], 1000);
+    await markVerified(db, "A", "pid-a", 1100, 1);
+    await markNotSeen(db, "A", 1200, "link not in latest snapshot");
+    const a = (await listTargets(db, 10))[0];
+    assert.equal(a.active, 0);
+    assert.equal(a.verifiedAt, 1100);
+    assert.match(a.lastError!, /snapshot/i);
   } finally {
     close();
   }

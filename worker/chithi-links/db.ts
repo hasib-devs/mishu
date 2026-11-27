@@ -214,6 +214,22 @@ export async function markVerified(
     .run();
 }
 
+/** A link that is no longer in the newest snapshot: skip it, keep its verified_at. */
+export async function markNotSeen(
+  db: D1Database,
+  username: string,
+  _now: number,
+  error: string,
+): Promise<void> {
+  await db
+    .prepare(
+      "UPDATE f4t_chithi_targets SET active = 0, last_error = ? " +
+        "WHERE LOWER(username) = ?",
+    )
+    .bind(error, username.toLowerCase())
+    .run();
+}
+
 export async function markUnverified(
   db: D1Database,
   username: string,

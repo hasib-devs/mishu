@@ -33,6 +33,30 @@ function setup(topics: string[], bios: string[]) {
   return { db: d1, sqlite, close };
 }
 
+function addSnapshot(
+  sqlite: ReturnType<typeof createSqliteD1>["sqlite"],
+  scrapedAt: string,
+  topics: string[],
+  bios: string[],
+) {
+  sqlite
+    .prepare("INSERT INTO f4t_snapshots (scraped_at, total_rooms, total_participants) VALUES (?, ?, ?)")
+    .run(scrapedAt, topics.length, bios.length);
+  const id = Number(
+    (sqlite.prepare("SELECT id FROM f4t_snapshots WHERE scraped_at = ?").get(scrapedAt) as { id: number }).id,
+  );
+  topics.forEach((topic, i) => {
+    sqlite
+      .prepare("INSERT INTO f4t_rooms (snapshot_id, room_id, topic, language, current_people, owner_id, owner_name) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .run(id, `new${i}`, topic, "en", 1, "o", "Owner");
+  });
+  bios.forEach((bio, i) => {
+    sqlite
+      .prepare("INSERT INTO f4t_participants (snapshot_id, room_id, user_id, name, bio) VALUES (?, ?, ?, ?, ?)")
+      .run(id, "new0", `nu${i}`, `New User ${i}`, bio);
+  });
+}
+
 function deps(overrides: Record<string, unknown> = {}) {
   return {
     readTexts: readLatestSnapshotTexts,
@@ -281,6 +305,33 @@ test("quotes sent in earlier runs are never reused", async () => {
       quotes.push((await listTargets(db, 10))[0].lastQuote!);
     }
     assert.equal(new Set(quotes).size, 3);
+  } finally {
+    close();
+  }
+});
+
+test("a target whose link disappeared from the newest snapshot is not sent", async () => {
+  const { db, sqlite, close } = setup(["https://chithi.me/A"], []);
+  try {
+    assert.equal((await runChithiLinkPipeline({} as Env, db, deps())).sent, 1);
+    addSnapshot(sqlite, "2026-11-27T11:00:00Z", [], []);
+    const second = await runChithiLinkPipeline({} as Env, db, deps({ now: 2000 }));
+    assert.equal(second.sent, 0);
+    const a = (await listTargets(db, 10)).find((row) => row.username === "A")!;
+    assert.equal(a.active, 0);
+    assert.match(a.lastError!, /snapshot/i);
+  } finally {
+    close();
+  }
+});
+
+test("a user still in a room without a chithi link is not sent", async () => {
+  const { db, sqlite, close } = setup(["https://chithi.me/A"], []);
+  try {
+    assert.equal((await runChithiLinkPipeline({} as Env, db, deps())).sent, 1);
+    addSnapshot(sqlite, "2026-11-27T11:00:00Z", ["just chatting here"], ["bio without a link"]);
+    const second = await runChithiLinkPipeline({} as Env, db, deps({ now: 2000 }));
+    assert.equal(second.sent, 0);
   } finally {
     close();
   }

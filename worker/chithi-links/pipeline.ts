@@ -5,6 +5,7 @@ import {
   listUsedQuotes,
   markSendFailed,
   markSent,
+  markNotSeen,
   markUnverified,
   markVerified,
   readLatestSnapshotTexts,
@@ -75,11 +76,17 @@ export async function runChithiLinkPipeline(
     for (const username of extractChithiUsernames(bio)) add(username, "user_bio");
   }
   const discovered = await upsertTargets(db, found, now);
+  const present = new Set(found.map((item) => item.username.toLowerCase()));
 
-  // Phase 2 — re-check every target each run; a profile may be paused or gone.
+  // Phase 2 — re-check every link in the newest snapshot each run. Links that
+  // disappeared (user absent, or topic/bio edited) are deactivated and skipped.
   let verified = 0;
   let rejected = 0;
   for (const target of await listTargets(db, 1000)) {
+    if (!present.has(target.username.toLowerCase())) {
+      await markNotSeen(db, target.username, now, "link not in latest snapshot");
+      continue;
+    }
     const profile = await verify(target.username);
     if (profile) {
       await markVerified(db, target.username, profile.id, now, 1);
@@ -96,7 +103,10 @@ export async function runChithiLinkPipeline(
   const items: { username: string; content: string }[] = [];
   const quotes = new Map<string, string>();
   const used = (await listUsedQuotes(db, 200)).map(normalizeQuote);
-  for (const target of await listActiveTargets(db, maxSends)) {
+  const activeTargets = (await listActiveTargets(db, 1000))
+    .filter((target) => present.has(target.username.toLowerCase()))
+    .slice(0, maxSends);
+  for (const target of activeTargets) {
     try {
       const quote = await generate([...used]);
       const key = normalizeQuote(quote);
