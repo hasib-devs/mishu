@@ -13,14 +13,30 @@ import {
   fetchRooms,
 } from "@/lib/free4talk-api";
 import type { F4tRoom } from "@/lib/free4talk-api";
+import { Link2Icon } from "lucide-react";
 
 export function Free4TalkPage() {
   const location = useLocation();
-  const latestQ = useQuery({ queryKey: ["f4t", "latest"], queryFn: fetchLatest });
-  const snapshotsQ = useQuery({ queryKey: ["f4t", "snapshots"], queryFn: () => fetchSnapshots(24) });
-  const languagesQ = useQuery({ queryKey: ["f4t", "languages"], queryFn: () => fetchLanguages(7) });
-  const ownersQ = useQuery({ queryKey: ["f4t", "owners"], queryFn: () => fetchTopOwners(20) });
-  const usersQ = useQuery({ queryKey: ["f4t", "users"], queryFn: () => fetchTopUsers(20) });
+  const latestQ = useQuery({
+    queryKey: ["f4t", "latest"],
+    queryFn: fetchLatest,
+  });
+  const snapshotsQ = useQuery({
+    queryKey: ["f4t", "snapshots"],
+    queryFn: () => fetchSnapshots(24),
+  });
+  const languagesQ = useQuery({
+    queryKey: ["f4t", "languages"],
+    queryFn: () => fetchLanguages(7),
+  });
+  const ownersQ = useQuery({
+    queryKey: ["f4t", "owners"],
+    queryFn: () => fetchTopOwners(20),
+  });
+  const usersQ = useQuery({
+    queryKey: ["f4t", "users"],
+    queryFn: () => fetchTopUsers(20),
+  });
 
   void languagesQ;
 
@@ -30,7 +46,12 @@ export function Free4TalkPage() {
 
   const roomsQ = useQuery({
     queryKey: ["f4t", "rooms", language, level, q],
-    queryFn: () => fetchRooms({ language: language || undefined, level: level || undefined, q: q || undefined }),
+    queryFn: () =>
+      fetchRooms({
+        language: language || undefined,
+        level: level || undefined,
+        q: q || undefined,
+      }),
   });
 
   const latest = latestQ.data ?? null;
@@ -67,25 +88,53 @@ export function Free4TalkPage() {
       <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 md:p-8">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Free4Talk Community</h1>
-            <p className="text-sm text-muted-foreground">Live community rooms.</p>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Free4Talk Community
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Live community rooms.
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <NextRunCountdown jobId="hourly" label="scrape" />
-            <Button variant="outline" nativeButton={false} render={<Link to={{ pathname: "/", search: location.search }}>Back to chat</Link>} />
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={
+                <Link to={{ pathname: "/", search: location.search }}>
+                  Back to chat
+                </Link>
+              }
+            />
+            <Link
+              to={{ pathname: "/chithi-links", search: location.search }}
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            >
+              <Link2Icon className="size-4" />
+              Chithi links
+            </Link>
           </div>
         </header>
 
-        {latestQ.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+        {latestQ.isLoading && (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        )}
         {latestQ.isError && (
-          <p role="alert" className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive">
-            {latestQ.error instanceof Error ? latestQ.error.message : "Failed to load"}
+          <p
+            role="alert"
+            className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive"
+          >
+            {latestQ.error instanceof Error
+              ? latestQ.error.message
+              : "Failed to load"}
           </p>
         )}
 
         {!latestQ.isLoading && !latest && (
           <div className="rounded-2xl border border-dashed py-20 text-center">
-            <p className="text-sm text-muted-foreground">No snapshots yet — the first scrape runs at the next hourly cron</p>
+            <p className="text-sm text-muted-foreground">
+              No snapshots yet — the first scrape runs at the next hourly cron
+            </p>
           </div>
         )}
 
@@ -93,20 +142,31 @@ export function Free4TalkPage() {
           <>
             <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <KpiCard label="Rooms" value={latest.snapshot.totalRooms} />
-              <KpiCard label="Participants" value={latest.snapshot.totalParticipants} />
+              <KpiCard
+                label="Participants"
+                value={latest.snapshot.totalParticipants}
+              />
               <KpiCard label="Languages" value={langCounts.length} />
               <KpiCard label="Owners" value={distinctOwners} />
             </section>
 
             <section className="rounded-2xl border bg-card p-4 shadow-sm">
               <h2 className="mb-3 text-lg font-semibold">Hourly activity</h2>
-              {snapshotsQ.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
-              {snapshotsQ.isError && <p className="text-sm text-destructive">Failed to load snapshots</p>}
+              {snapshotsQ.isLoading && (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              )}
+              {snapshotsQ.isError && (
+                <p className="text-sm text-destructive">
+                  Failed to load snapshots
+                </p>
+              )}
               <HourlyChart snapshots={snapshots} />
             </section>
 
             <section className="rounded-2xl border bg-card p-4 shadow-sm">
-              <h2 className="mb-3 text-lg font-semibold">Language distribution</h2>
+              <h2 className="mb-3 text-lg font-semibold">
+                Language distribution
+              </h2>
               <div className="flex flex-col gap-2">
                 {langCounts.map(([lang, count]) => {
                   const pct = rooms.length ? (count / rooms.length) * 100 : 0;
@@ -114,9 +174,14 @@ export function Free4TalkPage() {
                     <div key={lang} className="flex items-center gap-3 text-sm">
                       <span className="w-24 truncate">{lang}</span>
                       <div className="h-2 flex-1 rounded bg-muted">
-                        <div className="h-2 rounded bg-primary" style={{ width: `${pct}%` }} />
+                        <div
+                          className="h-2 rounded bg-primary"
+                          style={{ width: `${pct}%` }}
+                        />
                       </div>
-                      <span className="w-12 text-right text-muted-foreground">{count}</span>
+                      <span className="w-12 text-right text-muted-foreground">
+                        {count}
+                      </span>
                     </div>
                   );
                 })}
@@ -125,8 +190,12 @@ export function Free4TalkPage() {
 
             <section className="rounded-2xl border bg-card p-4 shadow-sm">
               <h2 className="mb-3 text-lg font-semibold">Top owners</h2>
-              {ownersQ.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
-              {ownersQ.isError && <p className="text-sm text-destructive">Failed to load</p>}
+              {ownersQ.isLoading && (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              )}
+              {ownersQ.isError && (
+                <p className="text-sm text-destructive">Failed to load</p>
+              )}
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-muted-foreground">
@@ -149,8 +218,12 @@ export function Free4TalkPage() {
 
             <section className="rounded-2xl border bg-card p-4 shadow-sm">
               <h2 className="mb-3 text-lg font-semibold">Top users</h2>
-              {usersQ.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
-              {usersQ.isError && <p className="text-sm text-destructive">Failed to load</p>}
+              {usersQ.isLoading && (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              )}
+              {usersQ.isError && (
+                <p className="text-sm text-destructive">Failed to load</p>
+              )}
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-muted-foreground">
@@ -176,18 +249,43 @@ export function Free4TalkPage() {
             <section className="rounded-2xl border bg-card p-4 shadow-sm">
               <h2 className="mb-3 text-lg font-semibold">Rooms</h2>
               <div className="mb-3 flex flex-wrap gap-2">
-                <select value={language} onChange={(e) => setLanguage(e.target.value)} className="rounded border px-2 py-1 text-sm">
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="rounded border px-2 py-1 text-sm"
+                >
                   <option value="">All languages</option>
-                  {languages.map((l) => <option key={l} value={l}>{l}</option>)}
+                  {languages.map((l) => (
+                    <option key={l} value={l}>
+                      {l}
+                    </option>
+                  ))}
                 </select>
-                <select value={level} onChange={(e) => setLevel(e.target.value)} className="rounded border px-2 py-1 text-sm">
+                <select
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value)}
+                  className="rounded border px-2 py-1 text-sm"
+                >
                   <option value="">All levels</option>
-                  {levels.map((l) => <option key={l} value={l}>{l}</option>)}
+                  {levels.map((l) => (
+                    <option key={l} value={l}>
+                      {l}
+                    </option>
+                  ))}
                 </select>
-                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" className="rounded border px-2 py-1 text-sm" />
+                <input
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Search…"
+                  className="rounded border px-2 py-1 text-sm"
+                />
               </div>
-              {roomsQ.isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
-              {roomsQ.isError && <p className="text-sm text-destructive">Failed to load</p>}
+              {roomsQ.isLoading && (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              )}
+              {roomsQ.isError && (
+                <p className="text-sm text-destructive">Failed to load</p>
+              )}
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-muted-foreground">
@@ -200,7 +298,14 @@ export function Free4TalkPage() {
                 </thead>
                 <tbody>
                   {(roomsQ.data ?? []).length === 0 ? (
-                    <tr><td colSpan={5} className="py-4 text-center text-muted-foreground">No rooms match filters</td></tr>
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="py-4 text-center text-muted-foreground"
+                      >
+                        No rooms match filters
+                      </td>
+                    </tr>
                   ) : (
                     (roomsQ.data ?? []).map((r: F4tRoom) => (
                       <tr key={r.roomId} className="border-t">
@@ -231,7 +336,15 @@ function KpiCard({ label, value }: { label: string; value: number }) {
   );
 }
 
-function HourlyChart({ snapshots }: { snapshots: { scrapedAt: string; totalRooms: number; totalParticipants: number }[] }) {
+function HourlyChart({
+  snapshots,
+}: {
+  snapshots: {
+    scrapedAt: string;
+    totalRooms: number;
+    totalParticipants: number;
+  }[];
+}) {
   if (!snapshots || snapshots.length === 0) {
     return <p className="text-sm text-muted-foreground">No data points</p>;
   }
@@ -245,8 +358,17 @@ function HourlyChart({ snapshots }: { snapshots: { scrapedAt: string; totalRooms
     return `${x},${y}`;
   });
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" preserveAspectRatio="none">
-      <polyline fill="none" stroke="currentColor" strokeWidth="2" points={pts.join(" ")} />
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      className="w-full"
+      preserveAspectRatio="none"
+    >
+      <polyline
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        points={pts.join(" ")}
+      />
     </svg>
   );
 }

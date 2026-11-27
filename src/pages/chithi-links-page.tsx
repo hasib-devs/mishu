@@ -1,11 +1,12 @@
+import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 import { Link, useLocation } from "react-router";
-import { useQuery } from "@tanstack/react-query";
 
 import { NextRunCountdown } from "@/components/next-run-countdown";
 import { Button } from "@/components/ui/button";
-import { fetchChithiTargets } from "@/lib/chithi-links-api";
 import type { ChithiTarget } from "@/lib/chithi-links-api";
+import { fetchChithiTargets } from "@/lib/chithi-links-api";
+import { FeatherIcon } from "lucide-react";
 
 function formatTime(epochMs: number | null): string {
   if (epochMs === null) return "—";
@@ -111,6 +112,13 @@ export function ChithiLinksPage() {
                 </Link>
               }
             />
+            <Link
+              to={{ pathname: "/chithi", search: location.search }}
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            >
+              <FeatherIcon className="size-4" />
+              Chithi
+            </Link>
           </div>
         </header>
 
