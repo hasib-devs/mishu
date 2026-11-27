@@ -11,8 +11,10 @@ import {
 } from "../src/lib/model-options.ts";
 
 test("catalog holds only live ids with known effort modes", () => {
-  assert.equal(MODEL_OPTIONS.length, 4);
+  assert.equal(MODEL_OPTIONS.length, 6);
   assert.ok(MODEL_OPTIONS.some((model) => model.id === DEFAULT_MODEL_ID));
+  assert.ok(isSupportedModel("z-ai/glm-5.3-flash"));
+  assert.ok(isSupportedModel("moonshotai/kimi-k3.1-pro"));
   assert.deepEqual(EFFORTS, ["low", "medium", "high"]);
   assert.equal(isSupportedModel("nvidia/nemotron-3-super-120b-a12b"), false);
   assert.equal(isSupportedEffort("extreme"), false);
@@ -33,6 +35,22 @@ test("effort maps to the raw field each model family actually accepts", () => {
   );
   assert.deepEqual(
     effortToRequestOptions("nvidia/nemotron-3.5-super-vl-120b-a12b", "high"),
+    { reasoning_effort: "high" },
+  );
+  assert.deepEqual(
+    effortToRequestOptions("z-ai/glm-5.3-flash", "low"),
+    { reasoning_effort: "low" },
+  );
+  assert.deepEqual(
+    effortToRequestOptions("z-ai/glm-5.3-flash", "high"),
+    { reasoning_effort: "high" },
+  );
+  assert.deepEqual(
+    effortToRequestOptions("moonshotai/kimi-k3.1-pro", "medium"),
+    { reasoning_effort: "low" },
+  );
+  assert.deepEqual(
+    effortToRequestOptions("moonshotai/kimi-k3.1-pro", "high"),
     { reasoning_effort: "high" },
   );
   assert.deepEqual(effortToRequestOptions("unknown/model", "high"), {});

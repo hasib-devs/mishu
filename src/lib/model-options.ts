@@ -41,6 +41,18 @@ export const MODEL_OPTIONS: readonly ModelOption[] = [
     description: "Large model with native effort control.",
     effortMode: "effort",
   },
+  {
+    id: "z-ai/glm-5.3-flash",
+    label: "GLM 5.3 Flash",
+    description: "Multimodal reasoning model with native effort control.",
+    effortMode: "effort",
+  },
+  {
+    id: "moonshotai/kimi-k3.1-pro",
+    label: "Kimi K3.1 Pro",
+    description: "Large reasoning model for coding and complex tasks.",
+    effortMode: "effort",
+  },
 ];
 
 const BUDGETS: Record<ReasoningEffort, number> = {
