@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none" role="img" aria-label="AI chat">
+  <mask id="spark-cut">
+    <rect width="64" height="64" fill="#fff"/>
+    <path d="M32 13c1 10 5 14 15 15-10 1-14 5-15 15-1-10-5-14-15-15 10-1 14-5 15-15Z" fill="#000"/>
+  </mask>
+  <g fill="currentColor" mask="url(#spark-cut)">
+    <rect x="6" y="6" width="52" height="44" rx="15"/>
+    <path d="M19 43 13 58.5 34.5 47Z"/>
+  </g>
+</svg>

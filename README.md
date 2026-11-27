@@ -73,3 +73,26 @@ export default defineConfig([
 ])
 
 ```
+
+## Brand assets
+
+The mark is a chat bubble with an AI spark — deliberately wordmark-free so it
+holds up at favicon size. SVG files in `public/` are the source of truth; PNGs
+are rendered from them and should not be hand-edited.
+
+| Source | Outputs |
+| --- | --- |
+| `public/logo.svg` | `favicon.svg`, `favicon-16x16.png`, `favicon-32x32.png`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png` |
+| `public/logo-mono.svg` | Single-color mark for arbitrary backgrounds (`currentColor`) |
+| `public/icon-maskable.svg` | `icon-512-maskable.png` — safe-zone PWA icon |
+| `public/og-image.svg` | `og-image.png` — 1200×630 social preview |
+
+Regenerate a PNG from source (renderer is fetched on demand):
+
+```sh
+npx --yes @resvg/resvg-js-cli --fit-width 512 public/logo.svg public/icon-512.png
+```
+
+Browser metadata (theme color, manifest, icons, social tags) lives in
+`index.html` and `public/manifest.webmanifest`. The in-app mark is
+`src/components/brand-logo.tsx`.

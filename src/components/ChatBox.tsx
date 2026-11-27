@@ -10,6 +10,7 @@ import {
 import { motion, useReducedMotion } from "motion/react";
 import * as React from "react";
 
+import { BrandLogo } from "@/components/brand-logo";
 import { StepRow } from "@/components/chat-rows";
 import { Markdown } from "@/components/markdown";
 import { MessageActions } from "@/components/message-actions";
@@ -194,10 +195,13 @@ export function ChatBox({
       <div className="relative flex h-full min-h-0 w-full flex-col gap-4 [[data-slot=preview]:has(&)]:bg-background [[data-slot=preview]:has(&)>div]:p-0!">
         <div className="flex min-h-0 w-full flex-1 flex-col gap-4">
           <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-2 md:px-8">
-            <div className="flex min-w-0 flex-col gap-1">
-              <div className="truncate font-medium">{title}</div>
-              <div className="text-sm text-muted-foreground">
-                Ask me anything
+            <div className="flex min-w-0 items-center gap-3">
+              <BrandLogo className="size-8 shrink-0" />
+              <div className="flex min-w-0 flex-col gap-1">
+                <div className="truncate font-medium">{title}</div>
+                <div className="text-sm text-muted-foreground">
+                  Ask me anything
+                </div>
               </div>
             </div>
           </div>

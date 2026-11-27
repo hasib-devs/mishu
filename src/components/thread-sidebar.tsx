@@ -8,6 +8,7 @@ import {
   XIcon,
 } from "lucide-react";
 
+import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import type { ThreadSummary } from "@/lib/thread-api";
 import { groupThreads } from "@/lib/thread-groups";
@@ -32,7 +33,11 @@ export function ThreadSidebar({
 
   const panel = (
     <div className="flex h-full w-full flex-col gap-3 bg-muted/30 p-3">
-      <div className="mb-4">
+      <div className="flex h-9 items-center">
+        <BrandLogo className="size-8" />
+      </div>
+
+      <div className="mb-1">
         <Button
           variant="outline"
           className="w-full justify-start gap-2"
